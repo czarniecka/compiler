@@ -1,13 +1,13 @@
 from sly import Lexer
 
-class MyLexer(Lexer):
+class my_lexer(Lexer):
     # Tokeny z gramatyki
     tokens = {
         PROCEDURE, PROGRAM, IS, BEGIN, END, 
         IF, THEN, ELSE, ENDIF, WHILE, DO, ENDWHILE,
         REPEAT, UNTIL, FOR, FROM, TO, DOWNTO, ENDFOR,
         READ, WRITE,
-        IDENTIFIER, NUM, 
+        PIDENTIFIER, NUM, T,
         ASSIGN, PLUS, MINUS, MULTIPLY, DIVIDE, MOD,
         EQUAL, NEQUAL, LESS, GREATER, LEQ, GEQ,
         LPAREN, RPAREN, LBRACKET, RBRACKET, SEMICOLON, COLON, COMMA
@@ -38,6 +38,7 @@ class MyLexer(Lexer):
     ENDFOR = r'ENDFOR'
     READ = r'READ'
     WRITE = r'WRITE'
+    T = r'T'
 
     # Symboliczne tokeny
     ASSIGN = r':='
@@ -60,11 +61,10 @@ class MyLexer(Lexer):
     COLON = r':'
     COMMA = r','
 
-    # Tokeny identyfikatorów i liczb
-    @_(r'[a-zA-Z_][a-zA-Z0-9_]*')
-    def IDENTIFIER(self, t):
-        return t
+    # Token identyfikatorów
+    PIDENTIFIER = r'[_a-z]+'
 
+    # Token liczb INT
     @_(r'[-]?\d+')
     def NUM(self, t):
         t.value = int(t.value)
@@ -77,16 +77,17 @@ class MyLexer(Lexer):
 
     # Ignorowanie nowej linii
     @_(r'\n+')
-    def ignore_empty_line(self, t):
+    def ignore_newline(self, t):
         self.lineno += len(t.value)
 
     # Obsługa błędów
     def error(self, t):
-        Exception(f"ERROR LEXER: unvalid sign {t.value[0]} on line {self.lineno}")
+        print(f"ERROR LEXER: illegal character {t.value[0]} on line {self.lineno}")
         self.index += 1
 
 if __name__ == '__main__':
-    data = '''
+    data0 = 'x = 3 + 42 * (s - t)'
+    data1 = '''
     PROGRAM IS
     BEGIN
         x := 10;
@@ -96,6 +97,7 @@ if __name__ == '__main__':
     END;
     '''
 
-    lexer = MyLexer()
-    for token in lexer.tokenize(data):
+    lexer = my_lexer()
+    for token in lexer.tokenize(data1):
         print(token)
+        #print('type=%r, value=%r' % (token.type, token.value))
