@@ -46,7 +46,11 @@ class my_parser(Parser):
     # command
     @_('identifier ASSIGN expression SEMICOLON')
     def command(self, t):
-        pass
+        # Załaduj wynik wyrażenia do akumulatora
+        self.code_gen.emit("LOAD " + t.expression)
+        # Zapisz wynik do zmiennej
+        self.code_gen.emit("STORE " + t.identifier)
+        
     @_('IF condition THEN commands ELSE commands ENDIF')
     def command(self, t):
         pass
@@ -76,48 +80,48 @@ class my_parser(Parser):
         pass
 
     # proc_head
-    @_('identifier LPAREN args_decl RPAREN')
+    @_('PIDENTIFIER LPAREN args_decl RPAREN')
     def proc_head(self, t):
         pass
 
     # proc_call
-    @_('identifier LPAREN args RPAREN')
+    @_('PIDENTIFIER LPAREN args RPAREN')
     def proc_call(self, t):
         pass
 
     # declarations 
-    @_('declarations COMMA identifier')
+    @_('declarations COMMA PIDENTIFIER')
     def declarations(self, t):
         pass
-    @_('declarations COMMA identifier LBRACKET NUM COLON NUM RBRACKET')
+    @_('declarations COMMA PIDENTIFIER LBRACKET NUM COLON NUM RBRACKET')
     def declarations(self, t):
         pass
-    @_('identifier')
+    @_('PIDENTIFIER')
     def declarations(self, t):
         pass
-    @_('identifier LBRACKET NUM COLON NUM RBRACKET')
+    @_('PIDENTIFIER LBRACKET NUM COLON NUM RBRACKET')
     def declarations(self, t):
         pass
 
     # args_decl
-    @_('args_decl COMMA identifier')
+    @_('args_decl COMMA PIDENTIFIER')
     def args_decl(self, t):
         pass
-    @_('args_decl COMMA T identifier')
+    @_('args_decl COMMA T PIDENTIFIER')
     def args_decl(self, t):
         pass
-    @_('identifier')
+    @_('PIDENTIFIER')
     def args_decl(self, t):
         pass
-    @_('T identifier')
+    @_('T PIDENTIFIER')
     def args_decl(self, t):
         pass
 
     # args
-    @_('args COMMA identifier')
+    @_('args COMMA PIDENTIFIER')
     def args(self, t):
         pass
-    @_('identifier')
+    @_('PIDENTIFIER')
     def args(self, t):
         pass
 
@@ -181,9 +185,8 @@ class my_parser(Parser):
         pass
 
     # -----------------------------------------------
-    def error(self, p):
+    def error(self, t):
         if p:
-            print("Błąd składni przy tokenie", p.type)
+            print(f'Syntax error: {t.type}')
         else:
-            print("Błąd składni przy końcu pliku (czegoś brakuje?)")
-            exit(5)
+            print("Syntax error at EOF")
