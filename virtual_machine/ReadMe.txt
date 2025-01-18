@@ -27,4 +27,10 @@ parser.y
 mw.cc
 mw-cln.cc
 main.cc
+----------------------------------------
+Kompilacja:
+make maszyna-wirtualna
+Uruchomienie:
+./maszyna-wirtualna plik.mr
 
+cln nie działa :O
