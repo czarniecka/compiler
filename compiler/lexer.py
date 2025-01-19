@@ -21,7 +21,6 @@ class my_lexer(Lexer):
     PROGRAM = r'PROGRAM'
     IS = r'IS'
     BEGIN = r'BEGIN'
-    END = r'END'
     IF = r'IF'
     THEN = r'THEN'
     ELSE = r'ELSE'
@@ -39,6 +38,7 @@ class my_lexer(Lexer):
     READ = r'READ'
     WRITE = r'WRITE'
     T = r'T'
+    END = r'END'
 
     # Symboliczne tokeny
     ASSIGN = r':='
@@ -65,18 +65,18 @@ class my_lexer(Lexer):
     PIDENTIFIER = r'[_a-z]+'
 
     # Token liczb INT
-    @_(r'[-]?\d+')
+    @_(r'[-]?\d+') # type: ignore
     def NUM(self, t):
         t.value = int(t.value)
         return t
 
     # Ignorowanie komentarzy
-    @_(r'\#[^\n]*')
+    @_(r'\#[^\n]*') # type: ignore
     def ignore_comment(self, t):
         self.lineno += t.value.count('\n')
 
     # Ignorowanie nowej linii
-    @_(r'\n+')
+    @_(r'\n+') # type: ignore
     def ignore_newline(self, t):
         self.lineno += len(t.value)
 
@@ -102,4 +102,3 @@ if __name__ == '__main__':
     lexer = my_lexer()
     for token in lexer.tokenize(data1):
         print(token)
-        #print('type=%r, value=%r' % (token.type, token.value))
