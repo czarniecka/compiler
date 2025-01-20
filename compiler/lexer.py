@@ -3,14 +3,14 @@ from sly import Lexer
 class my_lexer(Lexer):
     # Tokeny z gramatyki
     tokens = {
-        PROCEDURE, PROGRAM, IS, BEGIN, END, 
-        IF, THEN, ELSE, ENDIF, WHILE, DO, ENDWHILE,
-        REPEAT, UNTIL, FOR, FROM, TO, DOWNTO, ENDFOR,
-        READ, WRITE,
-        PIDENTIFIER, NUM, T,
-        ASSIGN, PLUS, MINUS, MULTIPLY, DIVIDE, MOD,
-        EQUAL, NEQUAL, LESS, GREATER, LEQ, GEQ,
-        LPAREN, RPAREN, LBRACKET, RBRACKET, SEMICOLON, COLON, COMMA
+        PROCEDURE, PROGRAM, IS, BEGIN, END,                             # type: ignore
+        IF, THEN, ELSE, ENDIF, WHILE, DO, ENDWHILE,                     # type: ignore
+        REPEAT, UNTIL, FOR, FROM, TO, DOWNTO, ENDFOR,                   # type: ignore
+        READ, WRITE,                                                    # type: ignore
+        PIDENTIFIER, NUM, T,                                            # type: ignore
+        ASSIGN, PLUS, MINUS, MULTIPLY, DIVIDE, MOD,                     # type: ignore
+        EQUAL, NEQUAL, LESS, GREATER, LEQ, GEQ,                         # type: ignore
+        LPAREN, RPAREN, LBRACKET, RBRACKET, SEMICOLON, COLON, COMMA     # type: ignore
     }
 
     # Ignorowane znaki (spacje, tabulatory)
@@ -24,10 +24,10 @@ class my_lexer(Lexer):
     IF = r'IF'
     THEN = r'THEN'
     ELSE = r'ELSE'
+    ENDWHILE = r'ENDWHILE'
     ENDIF = r'ENDIF'
     WHILE = r'WHILE'
     DO = r'DO'
-    ENDWHILE = r'ENDWHILE'
     REPEAT = r'REPEAT'
     UNTIL = r'UNTIL'
     FOR = r'FOR'
