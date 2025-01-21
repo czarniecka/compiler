@@ -1,11 +1,16 @@
 from sly import Parser
 from lexer import my_lexer
 from symbol_table import SymbolTable, Variable, Iterator, Array
+from code_generator import CodeGenerator
 
 class my_parser(Parser):
 
     tokens = my_lexer.tokens
     symbol_table = SymbolTable()
+
+    def __init__(self):
+        super().__init__()
+        self.generator = CodeGenerator(self.symbol_table)
 
     literal_constants = set()
 
@@ -14,10 +19,17 @@ class my_parser(Parser):
         ('left', 'MULTIPLY', 'DIVIDE', 'MOD') 
     )
 
+
+
     # program_all: program składa się z procedur (opcjonalne) i głównego programu main
     @_('procedures main') # type: ignore
     def program_all(self, p):
-        return "PROGRAM", p.procedures, p.main
+        ast = ("PROGRAM", p.procedures, p.main)
+        print("\nAST:", ast)
+        asm_code = self.generator.generate(ast)
+        return asm_code
+
+
 
     # procedures: funkcje
     @_('procedures PROCEDURE proc_head IS declarations BEGIN commands END') # type: ignore
@@ -32,6 +44,8 @@ class my_parser(Parser):
     def procedures(self, p):
         return []
 
+
+
     # main: główna część programu
     @_('PROGRAM IS declarations BEGIN commands END') # type: ignore
     def main(self, p):
@@ -41,6 +55,8 @@ class my_parser(Parser):
     def main(self, p):
         return "MAIN", p[3]
 
+
+
     # commands: komendy
     @_('commands command') # type: ignore
     def commands(self, p):
@@ -49,6 +65,8 @@ class my_parser(Parser):
     @_('command') # type: ignore
     def commands(self, p):
         return [p[0]]
+
+
 
     # command
     @_('identifier ASSIGN expression SEMICOLON') # type: ignore
@@ -114,6 +132,8 @@ class my_parser(Parser):
     def proc_head(self, p):
         return p[0], []
 
+
+
     # proc_call: wywołanie procedury
     @_('PIDENTIFIER LPAREN args RPAREN') # type: ignore
     def proc_call(self, p):
@@ -123,22 +143,30 @@ class my_parser(Parser):
     def proc_call(self, p):
         return "PROC_CALL", p[0], []
 
-    # declarations 
+
+
+    # declarations: lista deklaracji
     @_('declarations COMMA PIDENTIFIER') # type: ignore
     def declarations(self, p):
         self.symbol_table.add_variable(p[2])
+        return p[0] + [("VAR", p[2])]
 
     @_('declarations COMMA PIDENTIFIER LBRACKET NUM COLON NUM RBRACKET') # type: ignore
     def declarations(self, p):
         self.symbol_table.add_array(p[2], p[4], p[6])
+        return p[0] + [("ARRAY", p[2], p[4], p[6])]
 
     @_('PIDENTIFIER') # type: ignore
     def declarations(self, p):
         self.symbol_table.add_variable(p[0])
+        return [("VAR", p[0])]
 
     @_('PIDENTIFIER LBRACKET NUM COLON NUM RBRACKET') # type: ignore
     def declarations(self, p):
         self.symbol_table.add_array(p[0], p[2], p[4])
+        return [("ARRAY", p[0], p[2], p[4])]
+
+
 
     # args_decl
     @_('args_decl COMMA PIDENTIFIER') # type: ignore
@@ -157,6 +185,8 @@ class my_parser(Parser):
     def args_decl(self, p):
         return [(p[0], p[1])]
 
+
+
     # args
     @_('args COMMA PIDENTIFIER') # type: ignore
     def args(self, p):
@@ -165,6 +195,8 @@ class my_parser(Parser):
     @_('PIDENTIFIER') # type: ignore
     def args(self, p):
         return [p[0]]
+
+
 
     # expression
     @_('value') # type: ignore
@@ -191,6 +223,8 @@ class my_parser(Parser):
     def expression(self, p):
         return "MOD", p[0], p[2]
 
+
+
     # condition 
     @_('value EQUAL value') # type: ignore
     def condition(self, p):
@@ -216,6 +250,8 @@ class my_parser(Parser):
     def condition(self, p):
         return "LEQ", p[0], p[2]
 
+
+
     # value
     @_('NUM') # type: ignore
     def value(self, p):
@@ -224,6 +260,8 @@ class my_parser(Parser):
     @_('identifier') # type: ignore
     def value(self, p):
         return "ID", p[0]
+
+
 
     # identifier
     @_('PIDENTIFIER') # type: ignore
@@ -257,19 +295,46 @@ class my_parser(Parser):
         else:
             print("Syntax error at EOF")
 
+
 program = '''PROGRAM IS
 BEGIN
     x := 2;
 END'''
 
+program2 = '''PROGRAM IS
+    x, y, f[0:1]
+BEGIN
+    x := 10;
+    y := x + 2;
+    IF x < y THEN
+        WRITE x;
+    ELSE
+        WRITE y;
+    ENDIF
+END'''
+
+program3 = '''
+PROGRAM IS
+    x, y
+BEGIN
+    READ x;
+    WRITE x;
+END
+'''
 if __name__ == "__main__":
     lexer = my_lexer()
     parser = my_parser()
     
     try:
-        tokens = lexer.tokenize(program)
-        result = parser.parse(tokens)
-        print("AST (Abstract Syntax Tree):")
-        print(result)
+        tokens = lexer.tokenize(program3)  # Tokenizowanie programu źródłowego
+        asm_code = parser.parse(tokens)  # Parsowanie + generowanie kodu
+
+        print("\nGenerated Assembler Code:")
+        print(asm_code)
+
+        with open("output.mr", "w") as f:
+            f.write(asm_code)
+        print("\nAssembler code saved to 'output.mr'.")
+
     except Exception as e:
         print(f"Error: {e}")
