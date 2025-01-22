@@ -120,7 +120,7 @@ class SymbolTable(dict):
         
     def get_pointer(self, name):
         if type(name) == str:
-            return self.get_variable(name)
+            return self.get_variable(name).base_memory_index
         else:
             return self.get_array_at(name[0], name[1])
         
@@ -130,16 +130,3 @@ class SymbolTable(dict):
         else:
             raise ValueError(f"Constant value '{value}' not found.")
         
-st  = SymbolTable()
-st.add_variable("m")
-st.add_variable("M")
-st.add_iterator("m")
-st.add_array("e", -10, 10)
-st.add_const(1)
-
-print(st.get_pointer("m"))
-print(st.get_variable("M"))
-print(st.get_iterator("m"))
-print(st.get_pointer("m"))
-print(st.get_pointer(['e', 3]))
-print(st.get_const(1))

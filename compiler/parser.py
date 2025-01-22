@@ -34,11 +34,11 @@ class my_parser(Parser):
     # procedures: funkcje
     @_('procedures PROCEDURE proc_head IS declarations BEGIN commands END') # type: ignore
     def procedures(self, p):
-        return p[0] + [("PROCEDURE", p[1], p[3], p[5])]
+        return p[0] + [("PROCEDURE", p[2], p[4], p[6])]
 
     @_('procedures PROCEDURE proc_head IS BEGIN commands END') # type: ignore
     def procedures(self, p):
-        return p[0] + [("PROCEDURE", p[1], None, p[4])]
+        return p[0] + [("PROCEDURE", p[2], None, p[5])]
 
     @_('') # type: ignore
     def procedures(self, p):
@@ -280,14 +280,14 @@ class my_parser(Parser):
             else:
                 return "ARRAY", p[0], ("ID", ("UNDECLARED", p[2]))
         else:
-            raise ValueError(f"ERROR: undeclared array {p[0]}")
+            raise ValueError(f"Undeclared array {p[0]}")
 
     @_('PIDENTIFIER LBRACKET NUM RBRACKET') # type: ignore
     def identifier(self, p):
         if p[0] in self.symbol_table and type(self.symbol_table[p[0]]) == Array:
             return "ARRAY", p[0], p[2]
         else:
-            raise Exception(f"ERROR: undeclared array {p[0]}")
+            raise Exception(f"Undeclared array {p[0]}")
 
     # -----------------------------------------------
     def error(self, p):
@@ -297,12 +297,18 @@ class my_parser(Parser):
             print("Syntax error at EOF.")
 
 
-program = '''PROGRAM IS
-x,y,f[0:1] 
+program = '''
+PROGRAM IS
+x, y, i, f[0:1] 
 BEGIN
-    #READ f[1];
+    f[0] := 1;
+    i := 1;
+    READ f[1];
+    READ f[i];
     READ x;
-    WRITE 1;
+    WRITE x;
+    WRITE f[1];
+    WRITE f[i];
 END'''
 
 program2 = '''PROGRAM IS

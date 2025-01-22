@@ -3,14 +3,6 @@ class CodeGenerator:
     def __init__(self, symbol_table):
         self.symbol_table = symbol_table  # symbol_table to tablica symboli zawierająca informacje o zmiennych
         self.code = []  # przechowuje generowane instrukcje
-        self.label_counter = 0
-
-
-    # Generowanie unikalnych etykiet
-    def generate_label(self):
-        label = f"L{self.label_counter}"
-        self.label_counter += 1
-        return label
 
     # Emitowanie kodu
     def emit(self, instruction):
@@ -78,15 +70,21 @@ class CodeGenerator:
         if isinstance(var, tuple):
             if var[0] == "UNDECLARED":
                 if var[1] in self.symbols.iterators:
-                    raise Exception(f"Reading to iterator {var[1]}.")
+                    raise Exception(f"Unknown iterator {var[1]}.")
                 else:
-                    raise Exception(f"Reading to undeclared variable {var[1]}.")
+                    raise Exception(f"Unknown variable {var[1]}.")
             elif var[0] == "ARRAY":
                 array_name, index = var[1], var[2]
-                address = self.symbol_table.get_array_at(array_name, index)
-                self.emit(f"GET {address}")
+                add = self.handle_array_index(array_name, index)
+                self.emit(f"GET {add}")
         else:
-            address = self.symbol_table.get_variable(var)
+            # Zwrócona nazwa pojedynczej zmiennej lub iteratora
+            if var in self.symbol_table:
+                self.symbol_table[var].initialized = True
+                address = self.symbol_table.get_pointer(var)    
+            else:
+                address = self.symbol_table.get_iterator(var) #idk czy potrzeba tego else???
+                
             self.emit(f"GET {address}")
 
 
@@ -95,40 +93,29 @@ class CodeGenerator:
         Obsługuje instrukcję WRITE.
         """
         if value[0] == "ID":
-            # Zmienna lub element tablicy
             if isinstance(value[1], tuple):
-                # Sprawdzenie, czy wartość to nieznana zmienna lub iterator
                 if value[1][0] == "UNDECLARED":
                     if value[1][1] in self.symbol_table.iterators:
-                        # Jeśli to iterator
                         iterator = self.symbol_table.get_iterator(value[1][1])
-                        self.emit(f"LOAD {iterator.base_memory_index}")
+                        self.emit(f"PUT {iterator.base_memory_index}")
                     else:
-                        raise Exception(f"ERROR: Undeclared variable '{value[1][1]}'.")
+                        raise Exception(f"Undeclared variable '{value[1][1]}'.")
                 elif value[1][0] == "ARRAY":
-                    # Jeśli to element tablicy
-                    array_name = value[1][1]
-                    index = value[1][2]
-                    #TODO: !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    array_name, index  = value[1][1], value[1][2]
+                    add = self.handle_array_index(array_name, index)
+                    self.emit(f"PUT {add}")
                 else:
-                    raise Exception(f"ERROR: Invalid ID value '{value[1]}'.")
+                    raise Exception(f"Invalid ID value '{value[1]}'.")
             else:
-                # Zwykła zmienna
-                variable = self.symbol_table.get_variable(value[1])
-                self.emit(f"LOAD {variable.base_memory_index}")
-
+                variable = self.symbol_table.get_pointer(value[1])
+                self.emit(f"PUT {variable}")
         elif value[0] == "NUM":
-            # Jeśli to stała liczba
+            #TODO: 
             self.emit(f"SET {value[1]}")
-
+            self.emit(f"PUT 0")
         else:
-            # Nieznany typ wartości
-            raise Exception(f"ERROR: Unsupported value type '{value[0]}' for WRITE.")
-
-        # Zawsze wypisujemy zawartość akumulatora
-        self.emit("PUT 0")
-
-
+            raise Exception(f"Unsupported value type '{value[0]}' for WRITE.")
+        
     # Obsługa komendy ASSIGN
     def handle_assign(self, var, expression):
         """
@@ -146,37 +133,48 @@ class CodeGenerator:
                     raise Exception(f"Undeclared variable '{var[1]}'.")
 
             elif var[0] == "ARRAY":
-                # Przypadek przypisania do elementu tablicy
-                array_name = var[1]
-                index = var[2]
-
-                # Obsługa indeksu tablicy
-                if isinstance(index, tuple) and index[0] == "ID":
-                    #TODO: !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                    pass
-                elif isinstance(index, int):
-                    # Indeks jest liczbą stałą (np. `tab[3]`)
-                    array = self.symbol_table.get_array_at(array_name, index)
-                    self.emit(f"STORE {array}")
-                else:
-                    raise Exception(f"Invalid index type for array '{array_name}'.")
-
-            else:
-                raise Exception(f"Invalid assignment to {var}.")
+                array_name, index  = var[1], var[2]
+                add = self.handle_array_index(array_name, index)
+                self.emit(f"STORE {add}")
         else:
-            # Zwykła zmienna (np. `x := ...`)
-            adress = self.symbol_table.get_variable(var)
-            self.emit(f"STORE {adress}")
+            # Zwykła zmienna (x := ...)
+            if type(self.symbol_table[var]) == Variable:
+                self.symbol_table[var].initialized = True
+                adress = self.symbol_table.get_pointer(var)
+                self.emit(f"STORE {adress}")
+            else:
+                raise Exception(f"Assigning to array {var} with no index provided.")
 
-
-    #TODO: do poprawy    
     # Generowanie kodu dla wyrażeń
     def generate_expression(self, expression):
         if expression[0] == "NUM":  # Stała liczbowa
-            return f"LOADI {expression[1]}"
+            pass
         elif expression[0] == "ID":  # Zmienna
-            var_name = expression[1]
-            address = self.symbol_table[var_name]
-            return f"LOAD {address}"
+            pass
         else:
             raise ValueError(f"Unsupported expression type: {expression}")
+
+
+    def handle_array_index(self, array_name, index):
+        if isinstance(index, int):  # Stały indeks
+            address = self.symbol_table.get_pointer([array_name, index])
+
+        elif isinstance(index, tuple) and index[0] == "ID":
+            if isinstance(index[1], tuple) and index[1][0] == "UNDECLARED":
+                if index[1][1] in self.symbol_table.iterators:
+                    address = self.symbol_table.get_iterator(index[1][1])
+                    self.emit(f"LOAD {address}")
+                else:
+                    raise Exception(f"Undeclared index variable '{index[1][1]}'.")
+                
+            elif isinstance(index[1], str):  # Znana zmienna
+                address = self.symbol_table.get_pointer(index[1])
+                if not self.symbol_table[index[1]].initialized:
+                    raise Exception(f"Index variable '{index[1]}' is not initialized.")
+                #self.emit(f"LOAD {address}")
+            else:
+                raise Exception(f"Invalid index type '{index}'.")
+        else:
+            raise Exception(f"Unsupported index format '{index}'.")
+        
+        return address
