@@ -120,7 +120,8 @@ class my_parser(Parser):
     @_('WRITE value SEMICOLON') # type: ignore
     def command(self, p):
         if p[1][0] == "NUM":
-            self.literal_constants.add(int(p[1][1]))
+            self.symbol_table.add_const(p[1][1])
+            #self.literal_constants.add(int(p[1][1]))
         return "WRITE", p[1]
 
     # proc_head: nagłówek procedury
@@ -291,14 +292,17 @@ class my_parser(Parser):
     # -----------------------------------------------
     def error(self, p):
         if p:
-            print(f'Syntax error: {p.type} with {p.value}')
+            print(f'Syntax error: {p.type} on line {p.lineno}.')
         else:
-            print("Syntax error at EOF")
+            print("Syntax error at EOF.")
 
 
 program = '''PROGRAM IS
+x,y,f[0:1] 
 BEGIN
-    x := 2;
+    #READ f[1];
+    READ x;
+    WRITE 1;
 END'''
 
 program2 = '''PROGRAM IS
@@ -308,17 +312,19 @@ BEGIN
     y := x + 2;
     IF x < y THEN
         WRITE x;
+        f[0] := 1;
     ELSE
         WRITE y;
     ENDIF
-END'''
+END
+'''
 
 program3 = '''
 PROGRAM IS
     x, y
 BEGIN
     READ x;
-    WRITE x;
+    WRITE 2;
 END
 '''
 if __name__ == "__main__":
@@ -326,7 +332,7 @@ if __name__ == "__main__":
     parser = my_parser()
     
     try:
-        tokens = lexer.tokenize(program3)  # Tokenizowanie programu źródłowego
+        tokens = lexer.tokenize(program)  # Tokenizowanie programu źródłowego
         asm_code = parser.parse(tokens)  # Parsowanie + generowanie kodu
 
         print("\nGenerated Assembler Code:")

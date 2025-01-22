@@ -16,8 +16,6 @@ class Iterator:
 
 class Array:
     def __init__(self, first_index, last_index, base_memory_index):
-        if first_index > last_index:
-            raise ValueError("ERROR: first_index index greater than last_index index.")
         #self.name = name
         self.first_index = first_index
         self.last_index = last_index
@@ -25,7 +23,7 @@ class Array:
 
     def get_memory_index(self, index):
         if index < self.first_index or index > self.last_index:
-            raise IndexError("ERROR: array index out of bounds.")
+            raise IndexError("Array index out of bounds.")
         return self.base_memory_index + (index - self.first_index)
 
     def __repr__(self):
@@ -45,43 +43,51 @@ class Procedure:
     #Mapowanie????
     def bind_parameters(self, args):
         if len(args) != len(self.params):
-            raise ValueError(f"ERROR: incorrect number of arguments for procedure {self.name}.")
+            raise ValueError(f"Incorrect number of arguments for procedure {self.name}.")
         return dict(zip(self.params, args))
 
 class SymbolTable(dict):
     def __init__(self):
         super().__init__()
-        self.memory_counter = 0
+        self.memory_counter = 1
         self.iterators = {}
         self.procedures = {}
+        self.constants = {}
 
     def add_variable(self, name):
         if name in self:
-            raise ValueError(f"ERROR: variable '{name}' already declared.")
-        self[name] = Variable(self.memory_counter) #self.setdefault(name, Variable(self.memory_counter)) żeby nie nadpisywało? ale czy nadpisuje? idk
+            raise ValueError(f"Variable '{name}' already declared.")
+        self[name] = Variable(self.memory_counter)
         self.memory_counter += 1
 
     def add_array(self, name, first_index, last_index):
         if name in self:
-            raise ValueError(f"ERROR: array '{name}' already declared.")
+            raise ValueError(f"Array '{name}' already declared.")
         elif first_index > last_index:
-            raise IndexError(f"ERROR: first_index > last_index at array '{name}'.")
+            raise IndexError(f"First_index > last_index at array '{name}'.")
         array_size = last_index - first_index + 1
-        self[name] = Array(first_index, last_index, self.memory_counter) #self.setdefault(name, Array(name, self.memory_counter, first_index, last_index))
+        self[name] = Array(first_index, last_index, self.memory_counter)
         self.memory_counter += array_size
 
     def add_iterator(self, name):
-        if name in self:
+        if name in self.iterators:
             raise ValueError(f"Iterator '{name}' already declared.")
-        iterator = Iterator(self.memory_counter + 1, self.memory_counter) #
-        self.iterators[name] = iterator #self.iterators.setdefault(name, Iter(self.memory_counter + 1, self.memory_counter))
+        iterator = Iterator(self.memory_counter + 1, self.memory_counter) 
+        self.iterators[name] = iterator
         self.memory_counter += 2
 
     def add_procedure(self, name, params, local_variables, command):
         if name in self.procedures:
-            raise ValueError(f"ERROR: redeclaration of procedure '{name}'.")
+            raise ValueError(f"Redeclaration of procedure '{name}'.")
         self.procedures[name] = Procedure(name, self.memory_counter, params, local_variables, command)
         self.memory_counter += len(params) + len(local_variables)
+
+    def add_const(self, value):
+        if value in self.constants:
+            return self.constants[value]
+        self.constants[value] = self.memory_counter
+        self.memory_counter += 1
+        return self.constants[value]
 
     def get_variable(self, name):
         if name in self:
@@ -89,31 +95,51 @@ class SymbolTable(dict):
         elif name in self.iterators:
             return self.iterators[name]
         else:
-            raise ValueError(f"ERROR: unknow variable '{name}'.")
+            raise ValueError(f"Unknow variable '{name}'.")
 
     def get_array_at(self, name, index):
         if name in self:
             try:
                 return self[name].get_memory_index(index)
             except:
-                raise Exception(f"ERROR: non-array '{name}' used as an array.")
+                raise Exception(f"Non-array '{name}' used as an array.")
         else:
-            raise ValueError(f"ERROR: undeclared array '{name}'.")  
+            raise ValueError(f"Undeclared array '{name}'.")  
         
     def get_iterator(self, name):
         if name in self.iterators:
             return self.iterators[name]
         else:
-            raise ValueError(f"ERROR: undeclared iterator '{name}'.")
+            raise ValueError(f"Undeclared iterator '{name}'.")
         
     def get_procedure(self, name):
         if name in self.procedures:
             return self.procedures[name]
         else:
-            raise ValueError(f"ERROR: undeclared procedure '{name}'.")
+            raise ValueError(f"Undeclared procedure '{name}'.")
         
     def get_pointer(self, name):
         if type(name) == str:
-            return self.get_variable(name).memory_counter
+            return self.get_variable(name)
         else:
             return self.get_array_at(name[0], name[1])
+        
+    def get_const(self, value):
+        if value in self.constants:
+            return self.constants[value]
+        else:
+            raise ValueError(f"Constant value '{value}' not found.")
+        
+st  = SymbolTable()
+st.add_variable("m")
+st.add_variable("M")
+st.add_iterator("m")
+st.add_array("e", -10, 10)
+st.add_const(1)
+
+print(st.get_pointer("m"))
+print(st.get_variable("M"))
+print(st.get_iterator("m"))
+print(st.get_pointer("m"))
+print(st.get_pointer(['e', 3]))
+print(st.get_const(1))

@@ -84,21 +84,3 @@ class my_lexer(Lexer):
     def error(self, t):
         print(f"ERROR LEXER: illegal character {t.value[0]} on line {self.lineno}")
         self.index += 1
-        #exit(1)
-
-if __name__ == '__main__':
-    data0 = 'x = 3 + 42 * (s - t)'
-    data1 = '''
-    PROGRAM IS #hehe
-    BEGIN
-    .?
-        x := 10;
-        IF x < 20 THEN
-            WRITE x;
-        ENDIF;
-    END;
-    '''
-
-    lexer = my_lexer()
-    for token in lexer.tokenize(data1):
-        print(token)
