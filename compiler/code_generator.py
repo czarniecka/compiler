@@ -109,7 +109,7 @@ class CodeGenerator:
                     # Jeśli to element tablicy
                     array_name = value[1][1]
                     index = value[1][2]
-                    self.handle_array_access(array_name, index)
+                    #TODO: !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 else:
                     raise Exception(f"ERROR: Invalid ID value '{value[1]}'.")
             else:
@@ -152,12 +152,8 @@ class CodeGenerator:
 
                 # Obsługa indeksu tablicy
                 if isinstance(index, tuple) and index[0] == "ID":
-                    # Indeks jest identyfikatorem (np. `tab[i]`)
-                    index_code = self.generate_expression(index)
-                    self.emit(f"LOAD {index_code}")
-                    self.emit(f"ADD {self.symbol_table[array_name].base_memory_index}")
-                    self.emit("STORE 1")  # Zapisz obliczony adres w rejestrze 1
-                    self.emit("STOREI 1")  # Przypisz wartość do obliczonego adresu
+                    #TODO: !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    pass
                 elif isinstance(index, int):
                     # Indeks jest liczbą stałą (np. `tab[3]`)
                     array = self.symbol_table.get_array_at(array_name, index)
