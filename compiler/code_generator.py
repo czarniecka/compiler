@@ -140,7 +140,6 @@ class CodeGenerator:
                     raise Exception(f"Undeclared variable '{var[1]}'.")
 
             elif var[0] == "ARRAY":
-                #TODO: w p0 będzie wynik działania, musi być w p0 dopiero przed STOREI 1, albo dodatkowa komórka
                 array_name, index  = var[1], var[2]
                 address = self.handle_array_index(array_name, index)
                 self.generate_expression(expression)
@@ -150,7 +149,9 @@ class CodeGenerator:
                     self.emit(f"STOREI 1")
         else:
             # Zwykła zmienna (x := ...)
-            if type(self.symbol_table[var]) == Variable:
+            if isinstance(var, str):
+            #if type(self.symbol_table[var]) == Variable:
+                #self.symbol_table.add_variable(var)
                 self.symbol_table[var].initialized = True
                 adress = self.symbol_table.get_pointer(var)
                 self.generate_expression(expression)
@@ -161,11 +162,72 @@ class CodeGenerator:
     # Generowanie kodu dla wyrażeń
     def generate_expression(self, expression):
         if expression[0] == "NUM":  # Stała liczbowa
-            pass
+            self.emit(f"SET {expression[1]}")
         elif expression[0] == "ID":  # Zmienna
+            self.handle_expressionID(expression[1])
+        elif expression[0] == "PLUS":
+            self.generate_expression(expression[1])
+            self.emit(f"STORE 1")
+            self.generate_expression(expression[2])
+            self.emit(f"ADD 1")
+        elif expression[0] == "MINUS":
+            self.generate_expression(expression[2])
+            self.emit(f"STORE 1")
+            self.generate_expression(expression[1])
+            self.emit(f"SUB 1")
+        elif expression[0] == "MULTIPLY":
+            self.generate_expression(expression[1])  # Generowanie pierwszego argumentu
+            self.emit(f"STORE 1")  # Zapisz pierwszy argument w komórce 1
+            self.generate_expression(expression[2])  # Generowanie drugiego argumentu
+            self.emit(f"STORE 2")   # Zapisz drugi argument w komórce 2
+            self.emit(f"SET 0")     # Ustaw akumulator na 0 (wynik mnożenia)
+            self.emit(f"STORE 3")   # Zapisz wynik w komórce 3
+            self.emit(f"LOAD 2")    # Wczytaj drugi argument (licznik pętli)
+            self.emit(f"JZERO 8")   # Jeśli drugi argument to 0, pomiń mnożenie
+            self.emit(f"LOAD 3")    # Wczytaj bieżący wynik
+            self.emit(f"ADD 1")     # Dodaj pierwszy argument
+            self.emit(f"STORE 3")   # Zapisz wynik
+            self.emit(f"LOAD 2")    # Wczytaj licznik pętli
+            self.emit(f"SUB 1")     # Zmniejsz licznik o 1
+            self.emit(f"STORE 2")   # Zapisz licznik
+            self.emit(f"JUMP -8")   # Powtórz pętlę
+            self.emit(f"LOAD 3")    # Wczytaj wynik mnożenia do akumulatora
+        elif expression[0] == "DIVIDE":
+            pass
+        elif expression[0] == "MOD":
             pass
         else:
             raise ValueError(f"Unsupported expression type: {expression}")
+
+    def handle_expressionID(self, arg_expression):
+        if arg_expression[0] == "UNDECLARED":
+            # Obsługa niezadeklarowanych zmiennych
+            if arg_expression[1] in self.symbol_table.iterators:
+                # Jeśli to iterator, pobierz jego adres i załaduj do akumulatora
+                iterator_address = self.symbol_table.get_iterator(arg_expression[1])
+                self.emit(f"LOAD {iterator_address}")
+            else:
+                raise Exception(f"Undeclared variable '{arg_expression[1]}'.")
+        elif arg_expression[0] == "ARRAY":
+            # Obsługa tablic
+            array_name, index = arg_expression[1], arg_expression[2]
+
+            # Obsługa indeksu tablicy
+            address = self.handle_array_index(array_name, index)
+            
+            if address == 0:  # Użycie adresowania pośredniego
+                self.emit(f"LOADI 1")  # Wartość w pamięci pod adresem w komórce 1
+            else:
+                self.emit(f"LOAD {address}")  # Wartość pod stałym adresem
+        elif isinstance(arg_expression[0], str):
+            variable_name = arg_expression[0]
+            if variable_name in self.symbol_table:
+                address = self.symbol_table.get_pointer(variable_name)
+                self.emit(f"LOAD {address}")
+            else:
+                raise Exception(f"Unknown variable '{variable_name}'.")
+        else:
+            raise Exception(f"Invalid expression ID format: '{arg_expression}'.")
 
 
     def handle_array_index(self, array_name, index):
@@ -182,6 +244,7 @@ class CodeGenerator:
                     self.emit(f"SET {array_offset}")
                     self.emit(f"ADD {iterator_address}")
                     self.emit(f"STORE 1")
+                    #TODO: sprawdzić, czy nie wyszło za zakres
                 else:
                     raise Exception(f"Undeclared index variable '{index[1][1]}'.")
                 
@@ -192,6 +255,7 @@ class CodeGenerator:
                 self.emit(f"SET {array_offset}")
                 self.emit(f"ADD {variable_address}")
                 self.emit(f"STORE 1")
+                #TODO: sprawdzić, czy nie wyszło za zakres
             else:
                 raise Exception(f"Invalid index type '{index}'.")
         else:
