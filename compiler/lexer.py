@@ -40,6 +40,12 @@ class my_lexer(Lexer):
     TO        = r'TO'
     T         = r'T'
 
+    # Token liczb INT
+    @_(r'[-]?\d+') # type: ignore
+    def NUM(self, t):
+        t.value = int(t.value)
+        return t
+    
     # Symboliczne tokeny
     ASSIGN      = r':='
     NEQUAL      = r'!='
@@ -64,11 +70,7 @@ class my_lexer(Lexer):
     # Token identyfikatorów
     PIDENTIFIER = r'[_a-z]+'
 
-    # Token liczb INT
-    @_(r'[-]?\d+') # type: ignore
-    def NUM(self, t):
-        t.value = int(t.value)
-        return t
+    
 
     # Ignorowanie komentarzy
     @_(r'\#[^\n]*') # type: ignore
