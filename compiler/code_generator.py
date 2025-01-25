@@ -179,8 +179,10 @@ class CodeGenerator:
             self.handle_multiply(expression[1], expression[2]) 
         elif expression[0] == "DIVIDE":
             self.handle_division(expression[1], expression[2])
+            self.emit("LOAD 3")  # Załaduj wynik do akumulatora
         elif expression[0] == "MOD":
-            pass
+            self.handle_division(expression[1], expression[2])
+            self.emit("LOAD 5")  # Załaduj wynik do akumulatora
         else:
             raise ValueError(f"Unsupported expression type: {expression}")
     
@@ -278,13 +280,16 @@ class CodeGenerator:
             self.generate_expression(left_expr)
             self.emit("HALF")
             #self.emit("STORE 3")
+        #elif right_expr[1] == 1:
+            #self.generate_expression(left_expr)
         else:
+            # Zerowanie flag znaków
             self.emit("SET 0")
             self.emit("STORE 7")
             self.emit("SET 0")
             self.emit("STORE 8")
 
-            self.generate_expression(left_expr)  # ładujemy dzielnik b
+            self.generate_expression(left_expr)  # Dzielna
             self.emit("JPOS 6")
             self.emit("STORE 1")
             # Flaga znaku
@@ -294,10 +299,10 @@ class CodeGenerator:
             self.emit("SET 0")
             self.emit("SUB 1")
 
-            self.emit("STORE 1") # Pierwsza zmienna do p1
-            self.code.append("STORE 5") # pomocnicze a
+            self.emit("STORE 1") # Dzielna do p1
+            self.code.append("STORE 5") # Pomocnicza dzielna
 
-            self.generate_expression(right_expr)
+            self.generate_expression(right_expr) # Dzielnik
             self.emit("JPOS 6")
             self.emit("STORE 2")
 
@@ -308,15 +313,15 @@ class CodeGenerator:
             self.emit("SET 0")
             self.emit("SUB 2")
 
-            self.emit("STORE 2") # Druga zmienna do p2
-            self.code.append("STORE 6") # pomocnicze b
+            self.emit("STORE 2") # Dzielnik do p2
+            self.code.append("STORE 6") # Pomocniczy dzielnik
 
             # Inicjalizacja zmiennych w odpowiednich komórkach
-            self.code.append("SET 0")   # set res = 0
-            self.code.append("STORE 3")  # przechowaj res w komórce 3
+            self.code.append("SET 0")   # set wynik = 0
+            self.code.append("STORE 3")  
 
-            self.code.append("SET 1")   # set k = 1
-            self.code.append("STORE 4")  # przechowaj k w komórce 4
+            self.code.append("SET 1")   # k = 1
+            self.code.append("STORE 4")  
 
             # Jeśli coś 0 to koniec pętli, wynik = 0
             self.emit("LOAD 1")
@@ -325,77 +330,77 @@ class CodeGenerator:
             self.emit("JZERO 48")
 
             # Pierwsza pętla obliczeń
-            self.code.append("LOAD 5")    # załaduj a
+            self.code.append("LOAD 5")  
             self.code.append("SUB 6")     # a - b
-            self.code.append("JPOS 3")    # jeśli a - b >= 0, skocz do instrukcji 3
-            self.code.append("JZERO 2")   # jeśli a - b = 0, skocz do instrukcji 2
-            self.code.append("JUMP 8")    # skocz do instrukcji 8 (kończymy)
+            self.code.append("JPOS 3")    # jeśli a - b >= 0
+            self.code.append("JZERO 2")   # jeśli a - b = 0
+            self.code.append("JUMP 8")    
 
             # Dodajemy b do k i zapisujemy
             self.code.append("LOAD 6")
             self.code.append("ADD 6")     # b + b_mult
-            self.code.append("STORE 6")   # przechowaj w komórce 5 (b_mult)
+            self.code.append("STORE 6")   
             self.code.append("LOAD 4")
             self.code.append("ADD 4")     # k + k
-            self.code.append("STORE 4")   # zapisujemy nową wartość k
+            self.code.append("STORE 4")   
             self.code.append("JUMP -11")
 
             # Zmieniamy wartości pomocnicze (dzielimy przez 2)
             self.code.append("LOAD 4")
             self.code.append("HALF")      # k //= 2
-            self.code.append("STORE 4")   # przechowaj nową wartość k
+            self.code.append("STORE 4")
             self.code.append("LOAD 6")
             self.code.append("HALF")      # b_mult //= 2
-            self.code.append("STORE 6")   # przechowaj nową wartość b_mult
+            self.code.append("STORE 6") 
 
             # Sprawdzamy warunki na mod
             self.code.append("LOAD 5")
             self.code.append("SUB 2")     # a - b
-            self.code.append("JPOS 3")    # jeśli a - b >= 0, skocz do instrukcji 3
-            self.code.append("JZERO 2")   # jeśli a - b = 0, skocz do instrukcji 2
-            self.code.append("JUMP 19")   # skocz do instrukcji 19
+            self.code.append("JPOS 3")    # jeśli a - b >= 0
+            self.code.append("JZERO 2")   # jeśli a - b = 0
+            self.code.append("JUMP 19")   
 
             # Ponownie obliczamy resztę
             self.code.append("LOAD 5")
             self.code.append("SUB 6")     # a - b_mult
-            self.code.append("JPOS 3")    # jeśli a - b_mult >= 0, skocz do instrukcji 3
-            self.code.append("JZERO 2")   # jeśli a - b_mult = 0, skocz do instrukcji 2
-            self.code.append("JUMP 7")    # skocz do instrukcji 7
+            self.code.append("JPOS 3")    # jeśli a - b_mult >= 0
+            self.code.append("JZERO 2")   # jeśli a - b_mult = 0
+            self.code.append("JUMP 7") 
 
             # Przechowujemy wynik w komórce 3
-            self.code.append("LOAD 5")    # załaduj res
-
-            self.code.append("SUB 6") #30
+            self.code.append("LOAD 5")    
+            self.code.append("SUB 6") 
             self.code.append("STORE 5")
             self.code.append("LOAD 3")
 
             self.code.append("ADD 4")     # dodaj k do res
-            self.code.append("STORE 3")   # zapisz nową wartość res
-
+            self.code.append("STORE 3")   
             # Dzielimy ponownie k i b_mult przez 2
             self.code.append("LOAD 4")
             self.code.append("HALF")      # k //= 2
-            self.code.append("STORE 4")   # zapisz k
+            self.code.append("STORE 4") 
             self.code.append("LOAD 6")
             self.code.append("HALF")      # b_mult //= 2
-            self.code.append("STORE 6")   # zapisz b_mult
+            self.code.append("STORE 6")   
 
-            # Skok do poprzednich instrukcji w pętli
-            self.code.append("JUMP -22")  # wróć do instrukcji 22, aby kontynuować
+            self.code.append("JUMP -22")
 
-            #####################################
             # Sprawdzenie znaku
             self.emit("LOAD 7")
             self.emit("ADD 8")
             self.emit("JZERO 4")
-
             # Zmiana znaku wyniku, jesli różne znaki A i B
             self.emit("SET 0")
             self.emit("SUB 3")
             self.emit("STORE 3")
-            ##############################################
-            self.emit("LOAD 3")  # Załaduj wynik do akumulatora
 
+            #Sprawdzenie znaku reszty z dzielenia
+            self.emit("LOAD 8")
+            self.emit("JZERO 4")
+            # Zmiana znaku reszty, jesli B ujemne
+            self.emit("SET 0")
+            self.emit("SUB 5")
+            self.emit("STORE 5")
 
     def handle_expressionID(self, arg_expression):
         if arg_expression[0] == "UNDECLARED":
