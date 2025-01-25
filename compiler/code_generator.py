@@ -65,7 +65,6 @@ class CodeGenerator:
 
     def handle_if(self, condition, commands):
         condition_return = self.simplify_condition(condition)
-        print(condition_return)
         if isinstance(condition_return, bool):
             if condition_return:
                 self.generate_commands(commands)
@@ -105,6 +104,12 @@ class CodeGenerator:
         #for i in range(start_of_condition, end_of_condition):
             #self.code[i] = self.code[i].replace('finish', str(start_of_loop - i))
 
+    def prepere_constants(self, constants):
+        for const in constants:
+            address = self.symbol_table.get_const(const)
+            if address is None:
+                address = self.symbol_table.add_const(const)
+                #self.emit(f"STORE {address}")
 
     def simplify_condition(self, condition):
         if condition[1][0] == "NUM" and condition[2][0] == "NUM":
@@ -128,6 +133,8 @@ class CodeGenerator:
         else:
             return condition
 
+    def check_condition(self, condition):
+        pass
 
 
     def handle_read(self, var):
@@ -349,6 +356,9 @@ class CodeGenerator:
         #elif right_expr[1] == 1:
             #self.generate_expression(left_expr)
         else:
+            self.emit("SET 1")
+            #self.emit("STORE 7")
+            self.emit("STORE 9")
             # Zerowanie flag znaków
             self.emit("SET 0")
             #self.emit("STORE 7")
@@ -454,13 +464,20 @@ class CodeGenerator:
             # Sprawdzenie znaku
             self.emit("LOAD 7")
             self.emit("ADD 8")
-            self.emit("JZERO 4")
+            self.emit("JZERO 10") # jak 0 to skaczemy ten sam znak
             # Zmiana znaku wyniku, jesli różne znaki A i B
+            self.emit("LOAD 2")
+            self.emit("SUB 5")
+            self.emit("STORE 5")
+
+            self.emit("LOAD 3")
+            self.emit("ADD 9")
+            self.emit("STORE 3")
             self.emit("SET 0")
             self.emit("SUB 3")
             self.emit("STORE 3")
 
-            #Sprawdzenie znaku reszty z dzielenia
+            #Sprawdzenie znaku reszty z dzielenia ############################################################3
             self.emit("LOAD 8")
             self.emit("JZERO 4")
             # Zmiana znaku reszty, jesli B ujemne
