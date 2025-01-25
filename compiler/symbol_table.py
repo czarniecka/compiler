@@ -49,7 +49,7 @@ class Procedure:
 class SymbolTable(dict):
     def __init__(self):
         super().__init__()
-        self.memory_counter = 4
+        self.memory_counter = 10
         self.iterators = {}
         self.procedures = {}
         self.constants = {}
