@@ -176,28 +176,226 @@ class CodeGenerator:
             self.generate_expression(expression[1])
             self.emit(f"SUB 1")
         elif expression[0] == "MULTIPLY":
-            self.generate_expression(expression[1])  # Generowanie pierwszego argumentu
-            self.emit(f"STORE 1")  # Zapisz pierwszy argument w komórce 1
-            self.generate_expression(expression[2])  # Generowanie drugiego argumentu
-            self.emit(f"STORE 2")   # Zapisz drugi argument w komórce 2
-            self.emit(f"SET 0")     # Ustaw akumulator na 0 (wynik mnożenia)
-            self.emit(f"STORE 3")   # Zapisz wynik w komórce 3
-            self.emit(f"LOAD 2")    # Wczytaj drugi argument (licznik pętli)
-            self.emit(f"JZERO 8")   # Jeśli drugi argument to 0, pomiń mnożenie
-            self.emit(f"LOAD 3")    # Wczytaj bieżący wynik
-            self.emit(f"ADD 1")     # Dodaj pierwszy argument
-            self.emit(f"STORE 3")   # Zapisz wynik
-            self.emit(f"LOAD 2")    # Wczytaj licznik pętli
-            self.emit(f"SUB 1")     # Zmniejsz licznik o 1
-            self.emit(f"STORE 2")   # Zapisz licznik
-            self.emit(f"JUMP -8")   # Powtórz pętlę
-            self.emit(f"LOAD 3")    # Wczytaj wynik mnożenia do akumulatora
+            self.handle_multiply(expression[1], expression[2]) 
         elif expression[0] == "DIVIDE":
-            pass
+            self.handle_division(expression[1], expression[2])
         elif expression[0] == "MOD":
             pass
         else:
             raise ValueError(f"Unsupported expression type: {expression}")
+    
+    def handle_multiply(self, left_expr, right_expr):
+        if right_expr[1] == 2:
+            self.generate_expression(left_expr)
+            self.emit("ADD 0")
+
+        elif left_expr[1] == 2:
+            self.generate_expression(right_expr)
+            self.emit("ADD 0")
+        else:
+            self.emit("SET 0")
+            self.emit("STORE 5")
+            self.emit("SET 0")
+            self.emit("STORE 6")
+
+            self.generate_expression(left_expr)
+            self.emit("JPOS 6")
+            self.emit("STORE 1")
+            # Flaga znaku
+            self.emit("SET 1")
+            self.emit("STORE 5")
+
+            self.emit("SET 0")
+            self.emit("SUB 1")
+
+            self.emit("STORE 1") # Pierwsza zmienna do p1
+            
+            self.generate_expression(right_expr)
+            self.emit("JPOS 6")
+            self.emit("STORE 2")
+
+            # Flaga znaku
+            self.emit("SET -1")
+            self.emit("STORE 6")
+
+            self.emit("SET 0")
+            self.emit("SUB 2")
+
+            self.emit("STORE 2") # Druga zmienna do p2
+
+            self.emit("SET 0")
+            self.emit("STORE 3")  # Zapisz 0 do p3 jako wynik
+
+            # Jeśli coś 0 to koniec pętli, wynik = 0
+            self.emit("LOAD 1")
+            self.emit("JZERO 14")
+            self.emit("LOAD 2")
+            self.emit("JZERO 12")
+
+            # Pętla mnożenia
+            self.emit("LOAD 2")          
+            self.emit("JZERO 18")         
+            ########################################
+            self.emit("LOAD 2")
+            self.emit("HALF")
+            self.emit("STORE 4") # (_B/2_) do 4
+
+            self.emit("LOAD 4")  
+            self.emit("ADD 4")   # 2*(_B/2_)
+            self.emit("SUB 2")
+            self.emit("JZERO 4") # Wyszło 0 po odejmowaniu, to jump, bo B parzyste
+
+            self.emit("LOAD 3")
+            self.emit("ADD 1")
+            self.emit("STORE 3")
+
+            # 2*A
+            self.emit("LOAD 1")
+            self.emit("ADD 1")
+            self.emit("STORE 1") 
+
+            # B/2
+            self.emit("LOAD 2")
+            self.emit("HALF")
+            self.emit("STORE 2") 
+            ########################################
+            self.emit(f"JUMP -18")  # Skocz do początku pętli
+
+            # Sprawdzenie znaku
+            self.emit("LOAD 5")
+            self.emit("ADD 6")
+            self.emit("JZERO 4")
+
+            # Zmiana znaku wyniku, jesli różne znaki A i B
+            self.emit("SET 0")
+            self.emit("SUB 3")
+            self.emit("STORE 3")
+
+            self.emit("LOAD 3")  # Załaduj wynik do akumulatora
+
+    def handle_division(self, left_expr, right_expr):
+        if right_expr[1] == 2:
+            self.generate_expression(left_expr)
+            self.emit("HALF")
+            #self.emit("STORE 3")
+        else:
+            self.emit("SET 0")
+            self.emit("STORE 7")
+            self.emit("SET 0")
+            self.emit("STORE 8")
+
+            self.generate_expression(left_expr)  # ładujemy dzielnik b
+            self.emit("JPOS 6")
+            self.emit("STORE 1")
+            # Flaga znaku
+            self.emit("SET 1")
+            self.emit("STORE 7")
+
+            self.emit("SET 0")
+            self.emit("SUB 1")
+
+            self.emit("STORE 1") # Pierwsza zmienna do p1
+            self.code.append("STORE 5") # pomocnicze a
+
+            self.generate_expression(right_expr)
+            self.emit("JPOS 6")
+            self.emit("STORE 2")
+
+            # Flaga znaku
+            self.emit("SET -1")
+            self.emit("STORE 8")
+
+            self.emit("SET 0")
+            self.emit("SUB 2")
+
+            self.emit("STORE 2") # Druga zmienna do p2
+            self.code.append("STORE 6") # pomocnicze b
+
+            # Inicjalizacja zmiennych w odpowiednich komórkach
+            self.code.append("SET 0")   # set res = 0
+            self.code.append("STORE 3")  # przechowaj res w komórce 3
+
+            self.code.append("SET 1")   # set k = 1
+            self.code.append("STORE 4")  # przechowaj k w komórce 4
+
+            # Jeśli coś 0 to koniec pętli, wynik = 0
+            self.emit("LOAD 1")
+            self.emit("JZERO 50")
+            self.emit("LOAD 2")
+            self.emit("JZERO 48")
+
+            # Pierwsza pętla obliczeń
+            self.code.append("LOAD 5")    # załaduj a
+            self.code.append("SUB 6")     # a - b
+            self.code.append("JPOS 3")    # jeśli a - b >= 0, skocz do instrukcji 3
+            self.code.append("JZERO 2")   # jeśli a - b = 0, skocz do instrukcji 2
+            self.code.append("JUMP 8")    # skocz do instrukcji 8 (kończymy)
+
+            # Dodajemy b do k i zapisujemy
+            self.code.append("LOAD 6")
+            self.code.append("ADD 6")     # b + b_mult
+            self.code.append("STORE 6")   # przechowaj w komórce 5 (b_mult)
+            self.code.append("LOAD 4")
+            self.code.append("ADD 4")     # k + k
+            self.code.append("STORE 4")   # zapisujemy nową wartość k
+            self.code.append("JUMP -11")
+
+            # Zmieniamy wartości pomocnicze (dzielimy przez 2)
+            self.code.append("LOAD 4")
+            self.code.append("HALF")      # k //= 2
+            self.code.append("STORE 4")   # przechowaj nową wartość k
+            self.code.append("LOAD 6")
+            self.code.append("HALF")      # b_mult //= 2
+            self.code.append("STORE 6")   # przechowaj nową wartość b_mult
+
+            # Sprawdzamy warunki na mod
+            self.code.append("LOAD 5")
+            self.code.append("SUB 2")     # a - b
+            self.code.append("JPOS 3")    # jeśli a - b >= 0, skocz do instrukcji 3
+            self.code.append("JZERO 2")   # jeśli a - b = 0, skocz do instrukcji 2
+            self.code.append("JUMP 19")   # skocz do instrukcji 19
+
+            # Ponownie obliczamy resztę
+            self.code.append("LOAD 5")
+            self.code.append("SUB 6")     # a - b_mult
+            self.code.append("JPOS 3")    # jeśli a - b_mult >= 0, skocz do instrukcji 3
+            self.code.append("JZERO 2")   # jeśli a - b_mult = 0, skocz do instrukcji 2
+            self.code.append("JUMP 7")    # skocz do instrukcji 7
+
+            # Przechowujemy wynik w komórce 3
+            self.code.append("LOAD 5")    # załaduj res
+
+            self.code.append("SUB 6") #30
+            self.code.append("STORE 5")
+            self.code.append("LOAD 3")
+
+            self.code.append("ADD 4")     # dodaj k do res
+            self.code.append("STORE 3")   # zapisz nową wartość res
+
+            # Dzielimy ponownie k i b_mult przez 2
+            self.code.append("LOAD 4")
+            self.code.append("HALF")      # k //= 2
+            self.code.append("STORE 4")   # zapisz k
+            self.code.append("LOAD 6")
+            self.code.append("HALF")      # b_mult //= 2
+            self.code.append("STORE 6")   # zapisz b_mult
+
+            # Skok do poprzednich instrukcji w pętli
+            self.code.append("JUMP -22")  # wróć do instrukcji 22, aby kontynuować
+
+            #####################################
+            # Sprawdzenie znaku
+            self.emit("LOAD 7")
+            self.emit("ADD 8")
+            self.emit("JZERO 4")
+
+            # Zmiana znaku wyniku, jesli różne znaki A i B
+            self.emit("SET 0")
+            self.emit("SUB 3")
+            self.emit("STORE 3")
+            ##############################################
+            self.emit("LOAD 3")  # Załaduj wynik do akumulatora
+
 
     def handle_expressionID(self, arg_expression):
         if arg_expression[0] == "UNDECLARED":
