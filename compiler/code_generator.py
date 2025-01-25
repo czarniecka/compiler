@@ -48,20 +48,87 @@ class CodeGenerator:
                 self.handle_write(value)
             case ("READ", var):
                 self.handle_read(var)
-            case ("IF", condition, then_commands, constants):
-                pass
+            case ("IF", condition, commands, constants):
+                self.handle_if(condition, commands)
             case ("IFELSE", condition, then_commands, else_commands, constants):
-                pass
+                self.handle_ifelse(condition, then_commands, else_commands)
             case ("WHILE", condition, commands, constants):
-                pass
+                self.handle_while(condition, commands)
             case ("REPEAT", commands, condition, constants):
-                pass
+                self.handle_repeat(condition, commands)
             case ("FORTO", iterator, start, end, commands, constants):
                 pass
             case ("FORDOWNTO", iterator, start, end, commands, constants):
                 pass
             case ("PROC_CALL", name, args):
                 pass
+
+    def handle_if(self, condition, commands):
+        condition_return = self.simplify_condition(condition)
+        print(condition_return)
+        if isinstance(condition_return, bool):
+            if condition_return:
+                self.generate_commands(commands)
+        else:
+            pass
+
+    def handle_ifelse(self, condition, then_commands, else_commands):
+        condition_return = self.simplify_condition(condition)
+        print(condition_return)
+        if isinstance(condition_return, bool):
+            if condition_return:
+                self.generate_commands(then_commands)
+            else:
+                self.generate_commands(else_commands)
+        else:
+            pass
+
+    def handle_while(self, condition, commands):
+        condition_return = self.simplify_condition(condition)
+        print(condition_return)
+        if isinstance(condition_return, bool):
+            if condition_return:
+                #TODO: obsługa stałych
+                start_of_loop = len(self.code)
+                self.generate_commands(commands)
+                self.emit(f"JUMP {start_of_loop - len(self.code)}")
+        else:
+            pass
+
+    def handle_repeat(self, condition, commands):
+        print(commands)
+        start_of_loop = len(self.code)
+        self.generate_commands(commands)
+        start_of_condition = len(self.code)
+        #TODO: sprawdź warunek
+        end_of_condition = len(self.code)
+        #for i in range(start_of_condition, end_of_condition):
+            #self.code[i] = self.code[i].replace('finish', str(start_of_loop - i))
+
+
+    def simplify_condition(self, condition):
+        if condition[1][0] == "NUM" and condition[2][0] == "NUM":
+            if condition[0] == "LEQ":
+                return condition[1][1] <= condition[2][1]
+            elif condition[0] == "GEQ":
+                return condition[1][1] >= condition[2][1]
+            elif condition[0] == "lESS":
+                return condition[1][1] < condition[2][1]
+            elif condition[0] == "GREATER":
+                return condition[1][1] > condition[2][1]
+            elif condition[0] == "EQUAL":
+                return condition[1][1] == condition[2][1]
+            elif condition[0] == "NEQUAL":
+                return condition[1][1] != condition[2][1]
+        elif condition[1] == condition[2]:
+            if condition[0] in ["EQUAL", "LEQ", "GEQ"]:
+                return True
+            else:
+                return False
+        else:
+            return condition
+
+
 
     def handle_read(self, var):
         """
@@ -196,8 +263,7 @@ class CodeGenerator:
             self.emit("ADD 0")
         else:
             self.emit("SET 0")
-            self.emit("STORE 5")
-            self.emit("SET 0")
+            #self.emit("STORE 5")
             self.emit("STORE 6")
 
             self.generate_expression(left_expr)
@@ -285,8 +351,7 @@ class CodeGenerator:
         else:
             # Zerowanie flag znaków
             self.emit("SET 0")
-            self.emit("STORE 7")
-            self.emit("SET 0")
+            #self.emit("STORE 7")
             self.emit("STORE 8")
 
             self.generate_expression(left_expr)  # Dzielna
@@ -300,7 +365,7 @@ class CodeGenerator:
             self.emit("SUB 1")
 
             self.emit("STORE 1") # Dzielna do p1
-            self.code.append("STORE 5") # Pomocnicza dzielna
+            self.emit("STORE 5") # Pomocnicza dzielna
 
             self.generate_expression(right_expr) # Dzielnik
             self.emit("JPOS 6")
@@ -314,14 +379,14 @@ class CodeGenerator:
             self.emit("SUB 2")
 
             self.emit("STORE 2") # Dzielnik do p2
-            self.code.append("STORE 6") # Pomocniczy dzielnik
+            self.emit("STORE 6") # Pomocniczy dzielnik
 
             # Inicjalizacja zmiennych w odpowiednich komórkach
-            self.code.append("SET 0")   # set wynik = 0
-            self.code.append("STORE 3")  
+            self.emit("SET 0")   # set wynik = 0
+            self.emit("STORE 3")  
 
-            self.code.append("SET 1")   # k = 1
-            self.code.append("STORE 4")  
+            self.emit("SET 1")   # k = 1
+            self.emit("STORE 4")  
 
             # Jeśli coś 0 to koniec pętli, wynik = 0
             self.emit("LOAD 1")
@@ -329,61 +394,62 @@ class CodeGenerator:
             self.emit("LOAD 2")
             self.emit("JZERO 48")
 
-            # Pierwsza pętla obliczeń
-            self.code.append("LOAD 5")  
-            self.code.append("SUB 6")     # a - b
-            self.code.append("JPOS 3")    # jeśli a - b >= 0
-            self.code.append("JZERO 2")   # jeśli a - b = 0
-            self.code.append("JUMP 8")    
+            # Pętla
+            self.emit("LOAD 5")
+            self.emit("SUB 6")     # a - b
+            self.emit("JPOS 3")    # jeśli a - b >= 0
+            self.emit("JZERO 2")   # jeśli a - b = 0
+            self.emit("JUMP 8")    
 
             # Dodajemy b do k i zapisujemy
-            self.code.append("LOAD 6")
-            self.code.append("ADD 6")     # b + b_mult
-            self.code.append("STORE 6")   
-            self.code.append("LOAD 4")
-            self.code.append("ADD 4")     # k + k
-            self.code.append("STORE 4")   
-            self.code.append("JUMP -11")
+            self.emit("LOAD 6")
+            self.emit("ADD 6")     # b + b_mult
+            self.emit("STORE 6")   
+            self.emit("LOAD 4")
+            self.emit("ADD 4")     # k + k
+            self.emit("STORE 4")   
+            self.emit("JUMP -11")
 
             # Zmieniamy wartości pomocnicze (dzielimy przez 2)
-            self.code.append("LOAD 4")
-            self.code.append("HALF")      # k //= 2
-            self.code.append("STORE 4")
-            self.code.append("LOAD 6")
-            self.code.append("HALF")      # b_mult //= 2
-            self.code.append("STORE 6") 
+            self.emit("LOAD 4")
+            self.emit("HALF")      # k //= 2
+            self.emit("STORE 4")
+            self.emit("LOAD 6")
+            self.emit("HALF")      # b_mult //= 2
+            self.emit("STORE 6") 
 
             # Sprawdzamy warunki na mod
-            self.code.append("LOAD 5")
-            self.code.append("SUB 2")     # a - b
-            self.code.append("JPOS 3")    # jeśli a - b >= 0
-            self.code.append("JZERO 2")   # jeśli a - b = 0
-            self.code.append("JUMP 19")   
+            self.emit("LOAD 5")
+            self.emit("SUB 2")     # a - b
+            self.emit("JPOS 3")    # jeśli a - b >= 0
+            self.emit("JZERO 2")   # jeśli a - b = 0
+            self.emit("JUMP 19")   
 
             # Ponownie obliczamy resztę
-            self.code.append("LOAD 5")
-            self.code.append("SUB 6")     # a - b_mult
-            self.code.append("JPOS 3")    # jeśli a - b_mult >= 0
-            self.code.append("JZERO 2")   # jeśli a - b_mult = 0
-            self.code.append("JUMP 7") 
+            self.emit("LOAD 5")
+            self.emit("SUB 6")     # a - b_mult
+            self.emit("JPOS 3")    # jeśli a - b_mult >= 0
+            self.emit("JZERO 2")   # jeśli a - b_mult = 0
+            self.emit("JUMP 7") 
 
             # Przechowujemy wynik w komórce 3
-            self.code.append("LOAD 5")    
-            self.code.append("SUB 6") 
-            self.code.append("STORE 5")
-            self.code.append("LOAD 3")
+            self.emit("LOAD 5")    
+            self.emit("SUB 6") 
+            self.emit("STORE 5")
+            self.emit("LOAD 3")
 
-            self.code.append("ADD 4")     # dodaj k do res
-            self.code.append("STORE 3")   
+            self.emit("ADD 4")     # dodaj k do res
+            self.emit("STORE 3")   
             # Dzielimy ponownie k i b_mult przez 2
-            self.code.append("LOAD 4")
-            self.code.append("HALF")      # k //= 2
-            self.code.append("STORE 4") 
-            self.code.append("LOAD 6")
-            self.code.append("HALF")      # b_mult //= 2
-            self.code.append("STORE 6")   
+            self.emit("LOAD 4")
+            self.emit("HALF")      # k //= 2
+            self.emit("STORE 4") 
+            self.emit("LOAD 6")
+            self.emit("HALF")      # b_mult //= 2
+            self.emit("STORE 6")   
 
-            self.code.append("JUMP -22")
+            self.emit("JUMP -22")
+
 
             # Sprawdzenie znaku
             self.emit("LOAD 7")

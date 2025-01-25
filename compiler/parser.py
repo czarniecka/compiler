@@ -93,7 +93,7 @@ class my_parser(Parser):
 
     @_('REPEAT commands UNTIL condition SEMICOLON') # type: ignore
     def command(self, p):
-        repeat_com = "REPEAT", p[3], p[1], self.literal_constants.copy()
+        repeat_com = "REPEAT", p[1], p[3], self.literal_constants.copy()
         self.literal_constants.clear()
         return repeat_com
 
@@ -129,20 +129,11 @@ class my_parser(Parser):
     def proc_head(self, p):
         return p[0], p[2]
 
-    @_('PIDENTIFIER LPAREN RPAREN') # type: ignore
-    def proc_head(self, p):
-        return p[0], []
-
-
 
     # proc_call: wywołanie procedury
     @_('PIDENTIFIER LPAREN args RPAREN') # type: ignore
     def proc_call(self, p):
         return "PROC_CALL", p[0], p[2]
-
-    @_('PIDENTIFIER LPAREN RPAREN') # type: ignore
-    def proc_call(self, p):
-        return "PROC_CALL", p[0], []
 
 
 
@@ -327,18 +318,51 @@ END
 
 program3 = '''
 PROGRAM IS
-    x, y
+    x, y, f[-1:1]
 BEGIN
-    READ x;
-    WRITE 2;
+    IF x = x THEN
+        f[0] := 12* 10;
+        #f[0] := 2;
+        x := -10 / -7;
+        y := -10 % 7;
+        #f[0] :=  2 * 5;
+        #y := 1 * 0;
+        #y := 2;
+        #x := y;
+        #x := 2 + 1;
+        #y := 5 - -2;
+        #f[-1] := 3;
+        #x := f[-1];
+        #READ f[1];
+        #READ f[1];
+        WRITE f[0];
+        WRITE x;
+        WRITE y;
+    ELSE
+        x := 2;
+        WRITE x;
+    ENDIF
 END
+'''
+
+program4 = '''PROGRAM IS
+ a,b
+BEGIN
+  READ a;
+  READ b;
+  FOR i FROM a TO b DO
+    i:=1;
+  ENDFOR
+END
+
+
 '''
 if __name__ == "__main__":
     lexer = my_lexer()
     parser = my_parser()
     
     try:
-        tokens = lexer.tokenize(program)  # Tokenizowanie programu źródłowego
+        tokens = lexer.tokenize(program3)  # Tokenizowanie programu źródłowego
         asm_code = parser.parse(tokens)  # Parsowanie + generowanie kodu
 
         print("\nGenerated Assembler Code:")
