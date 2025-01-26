@@ -86,7 +86,17 @@ class CodeGenerator:
             else:
                 self.generate_commands(else_commands)
         else:
-            pass
+            start_of_condition = len(self.code)
+            self.check_condition(condition)
+            start_of_if = len(self.code)
+            self.generate_commands(then_commands)
+            self.emit(f"JUMP finish")
+            start_of_else = len(self.code)
+            self.generate_commands(else_commands)
+            end_of_command = len(self.code)
+            self.code[start_of_else - 1] = self.code[start_of_else - 1].replace('finish', str(end_of_command - start_of_else + 1))
+            for i in range(start_of_condition, start_of_if):
+                self.code[i] = self.code[i].replace('finish', str(start_of_else - i))
 
     def handle_while(self, condition, commands):
         condition_return = self.simplify_condition(condition)
@@ -98,17 +108,25 @@ class CodeGenerator:
                 self.generate_commands(commands)
                 self.emit(f"JUMP {start_of_loop - len(self.code)}")
         else:
-            pass
+            start_of_condition = len(self.code)
+            self.check_condition(condition)
+            start_of_loop = len(self.code)
+            self.generate_commands(commands)
+            self.code.append(f"JUMP {start_of_condition - len(self.code)}")
+            loop_end = len(self.code)
+            for i in range(start_of_condition, start_of_loop):
+                self.code[i] = self.code[i].replace('finish', str(loop_end - i))
 
     def handle_repeat(self, condition, commands):
         print(commands)
         start_of_loop = len(self.code)
         self.generate_commands(commands)
         start_of_condition = len(self.code)
-        #TODO: sprawdź warunek
+        self.check_condition(condition)
         end_of_condition = len(self.code)
-        #for i in range(start_of_condition, end_of_condition):
-            #self.code[i] = self.code[i].replace('finish', str(start_of_loop - i))
+        for i in range(start_of_condition, end_of_condition):
+            self.code[i] = self.code[i].replace('finish', str(2))
+        self.emit(f"JUMP -{end_of_condition - start_of_loop}")
 
     def prepere_constants(self, constants):
         for const in constants:
