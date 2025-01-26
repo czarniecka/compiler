@@ -7,9 +7,9 @@ class Variable:
         return str(self.base_memory_index)
 
 class Iterator:
-    def __init__(self, base_memory_index, times):
+    def __init__(self, base_memory_index, limit_memory):
         self.base_memory_index = base_memory_index
-        self.times = times
+        self.limit_memory = limit_memory
 
     def __repr__(self):
         return str(self.base_memory_index)
@@ -72,9 +72,11 @@ class SymbolTable(dict):
     def add_iterator(self, name):
         if name in self.iterators:
             raise ValueError(f"Iterator '{name}' already declared.")
-        iterator = Iterator(self.memory_counter + 1, self.memory_counter) 
+        limit_memory = self.memory_counter
+        iterator = Iterator(self.memory_counter + 1, limit_memory) 
         self.iterators[name] = iterator
         self.memory_counter += 2
+        return self.memory_counter - 1, limit_memory
 
     def add_procedure(self, name, params, local_variables, command):
         if name in self.procedures:
@@ -87,7 +89,7 @@ class SymbolTable(dict):
             return self.constants[value]
         self.constants[value] = self.memory_counter
         self.memory_counter += 1
-        return self.constants[value]
+        return self.memory_counter - 1
 
     def get_variable(self, name):
         if name in self:
@@ -108,7 +110,8 @@ class SymbolTable(dict):
         
     def get_iterator(self, name):
         if name in self.iterators:
-            return self.iterators[name]
+            iterator = self.iterators[name]
+            return iterator.base_memory_index, iterator.limit_memory
         else:
             raise ValueError(f"Undeclared iterator '{name}'.")
         
@@ -129,4 +132,3 @@ class SymbolTable(dict):
             return self.constants[value]
         else:
             raise ValueError(f"Constant value '{value}' not found.")
-        

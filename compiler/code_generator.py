@@ -3,6 +3,7 @@ class CodeGenerator:
     def __init__(self, symbol_table):
         self.symbol_table = symbol_table  # symbol_table to tablica symboli zawierająca informacje o zmiennych
         self.code = []  # przechowuje generowane instrukcje
+        self.iterators = []
 
     # Emitowanie kodu
     def emit(self, instruction):
@@ -57,9 +58,9 @@ class CodeGenerator:
             case ("REPEAT", commands, condition, constants):
                 self.handle_repeat(condition, commands)
             case ("FORTO", iterator, start, end, commands, constants):
-                pass
+                self.handle_for(iterator, start, end, commands, False, constants)
             case ("FORDOWNTO", iterator, start, end, commands, constants):
-                pass
+                self.handle_for(iterator, start, end, commands, True, constants)
             case ("PROC_CALL", name, args):
                 pass
 
@@ -128,12 +129,60 @@ class CodeGenerator:
             self.code[i] = self.code[i].replace('finish', str(2))
         self.emit(f"JUMP -{end_of_condition - start_of_loop}")
 
+    def handle_for(self, iterator, start, end, commands, downto, constants):
+        if start[0] == end[0] == "NUM":
+            if start[1] > end[1] and downto == False:
+                raise Exception(f"Invalid for loop scope.")
+            elif start[1] < end[1] and downto == True:
+                raise Exception(f"Invalid for loop scope.")
+            
+        if self.iterators:
+            address, bound_address = self.symbols.get_iterator(self.iterators[-1])
+            self.emit(f"STORE {address}")
+        else:
+            self.prepere_constants(constants)
+
+        if downto:
+            operation = "SUB 1"
+        else:
+            operation = "ADD 1"
+
+        self.iterators.append(iterator)
+        start_addr, end_addr = self.symbol_table.add_iterator(iterator)
+
+        self.emit("SET 1")
+        self.emit("STORE 1")
+
+        self.generate_expression(start)
+        self.emit(f"STORE {start_addr}")
+        self.generate_expression(end)
+        self.emit(operation)
+        self.emit(f"STORE {end_addr}")
+
+        start_of_for = len(self.code)
+
+        self.emit(f"LOAD {start_addr}")
+        self.emit(f"SUB {end_addr}")
+
+        it = len(self.code)
+        
+        self.generate_commands(commands)
+        
+        self.emit(f"LOAD {start_addr}")
+        self.emit(operation)
+        self.emit(f"STORE {start_addr}")
+
+        end_of_for = len(self.code)
+        self.code.insert(it, f"JZERO {end_of_for - start_of_for}")
+        self.emit(f"JUMP -{end_of_for - start_of_for + 1}")
+
     def prepere_constants(self, constants):
         for const in constants:
             address = self.symbol_table.get_const(const)
             if address is None:
                 address = self.symbol_table.add_const(const)
-                #self.emit(f"STORE {address}")
+                self.emit(f"STORE {address}")
+                
 
     def simplify_condition(self, condition):
         if condition[1][0] == "NUM" and condition[2][0] == "NUM":
