@@ -69,7 +69,13 @@ class CodeGenerator:
             if condition_return:
                 self.generate_commands(commands)
         else:
-            pass
+            start_of_condition = len(self.code)
+            self.check_condition(condition)
+            start_of_command = len(self.code)
+            self.generate_commands(commands)
+            end_of_command = len(self.code)
+            for i in range(start_of_condition, start_of_command):
+                self.code[i] = self.code[i].replace('finish', str(end_of_command - i))
 
     def handle_ifelse(self, condition, then_commands, else_commands):
         condition_return = self.simplify_condition(condition)
@@ -134,7 +140,34 @@ class CodeGenerator:
             return condition
 
     def check_condition(self, condition):
-        pass
+        
+        self.generate_expression(condition[2])
+        self.emit("STORE 2")
+        self.generate_expression(condition[1])
+        self.emit("SUB 2")
+
+        match condition[0]:
+            case ("GREATER"):
+                self.emit("JPOS 2")
+                self.emit("JUMP finish")
+            case ("LESS"):
+                self.emit("JNEG 2")
+                self.emit("JUMP finish")
+            case ("GEQ"):
+                self.emit("JPOS 3")
+                self.emit("JZERO 2")
+                self.emit("JUMP finish")
+            case ("LEQ"):
+                self.emit("JNEG 3")
+                self.emit("JZERO 2")
+                self.emit("JUMP finish")
+            case ("EQUAL"):
+                self.emit("JZERO 2")
+                self.emit("JUMP finish")
+            case ("NEQUAL"):
+                self.emit("JZERO 2")
+                self.emit("JUMP 2")
+                self.emit("JUMP finish")
 
 
     def handle_read(self, var):

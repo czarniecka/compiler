@@ -143,7 +143,7 @@ class my_parser(Parser):
         self.symbol_table.add_variable(p[2])
         return p[0] + [("VAR", p[2])]
 
-    @_('declarations COMMA PIDENTIFIER LBRACKET NUM COLON NUM RBRACKET') # type: ignore
+    @_('declarations COMMA PIDENTIFIER LBRACKET number COLON number RBRACKET') # type: ignore
     def declarations(self, p):
         self.symbol_table.add_array(p[2], p[4], p[6])
         return p[0] + [("ARRAY", p[2], p[4], p[6])]
@@ -153,7 +153,7 @@ class my_parser(Parser):
         self.symbol_table.add_variable(p[0])
         return [("VAR", p[0])]
 
-    @_('PIDENTIFIER LBRACKET NUM COLON NUM RBRACKET') # type: ignore
+    @_('PIDENTIFIER LBRACKET number COLON number RBRACKET') # type: ignore
     def declarations(self, p):
         self.symbol_table.add_array(p[0], p[2], p[4])
         return [("ARRAY", p[0], p[2], p[4])]
@@ -242,18 +242,23 @@ class my_parser(Parser):
     def condition(self, p):
         return "LEQ", p[0], p[2]
 
-
-
-    # value
+    # number
     @_('NUM') # type: ignore
+    def number(self, p):
+        return p[0]
+    
+    @_('MINUS NUM') # type: ignore
+    def number(self, p):
+        return -(p[1])
+    
+    # value
+    @_('number')
     def value(self, p):
         return "NUM", p[0]
 
     @_('identifier') # type: ignore
     def value(self, p):
         return "ID", p[0]
-
-
 
     # identifier
     @_('PIDENTIFIER') # type: ignore
@@ -273,7 +278,7 @@ class my_parser(Parser):
         else:
             raise ValueError(f"Undeclared array {p[0]}")
 
-    @_('PIDENTIFIER LBRACKET NUM RBRACKET') # type: ignore
+    @_('PIDENTIFIER LBRACKET number RBRACKET') # type: ignore
     def identifier(self, p):
         if p[0] in self.symbol_table and type(self.symbol_table[p[0]]) == Array:
             return "ARRAY", p[0], p[2]
@@ -320,11 +325,14 @@ program3 = '''
 PROGRAM IS
     x, y, f[-1:1]
 BEGIN
-    IF x = x THEN
-        f[0] := 12* 10;
+    f[0] := -1;
+    x := 1;
+    y := 1;
+    IF f[0] != y THEN
+        #f[0] := 12* 10;
         #f[0] := 2;
-        x := 132 / 5;
-        y := 132 / -5;
+        #x := 132 % 5;
+        #y := 132 % -5;
         #f[0] :=  2 * 5;
         #y := 1 * 0;
         #y := 2;
@@ -338,9 +346,9 @@ BEGIN
         WRITE f[0];
         WRITE x;
         WRITE y;
-    ELSE
-        x := 2;
-        WRITE x;
+    #ELSE
+    #    x := 2;
+    #    WRITE x;
     ENDIF
 END
 '''

@@ -38,19 +38,13 @@ class my_lexer(Lexer):
     IF        = r'IF'
     IS        = r'IS'
     TO        = r'TO'
-    T         = r'T'
-
-    # Token liczb INT
-    @_(r'[-]?\d+') # type: ignore
-    def NUM(self, t):
-        t.value = int(t.value)
-        return t
+   
     
     # Symboliczne tokeny
     ASSIGN      = r':='
     NEQUAL      = r'!='
-    GEQ      = r'>='
-    LEQ      = r'<='
+    GEQ         = r'>='
+    LEQ         = r'<='
     EQUAL       = r'='
     GREATER     = r'>'
     LESS        = r'<'
@@ -60,18 +54,24 @@ class my_lexer(Lexer):
     PLUS        = r'\+'
     MINUS       = r'\-'
     MULTIPLY    = r'\*'
-    DIVIDE    = r'\/'
+    DIVIDE      = r'\/'
     MOD         = r'\%'
     LBRACKET    = r'\['
     RBRACKET    = r'\]'
     LPAREN      = r'\('
     RPAREN      = r'\)'
 
+    
+    NUM = r'\d+'
+    T = r'T'
     # Token identyfikatorów
     PIDENTIFIER = r'[_a-z]+'
 
+    @_(r'\d+')
+    def NUM(self, t):
+        t.value = int(t.value)
+        return t
     
-
     # Ignorowanie komentarzy
     @_(r'\#[^\n]*') # type: ignore
     def ignore_comment(self, t):
