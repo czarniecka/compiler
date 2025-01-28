@@ -130,6 +130,7 @@ class CodeGenerator:
         self.emit(f"JUMP -{end_of_condition - start_of_loop}")
 
     def handle_for(self, iterator, start, end, commands, downto, constants):
+        # TODO: obsługa błędu: a > b przy to, a< b przy downto
         if start[0] == end[0] == "NUM":
             if start[1] > end[1] and downto == False:
                 raise Exception(f"Invalid for loop scope.")
@@ -137,21 +138,26 @@ class CodeGenerator:
                 raise Exception(f"Invalid for loop scope.")
             
         if self.iterators:
-            address, bound_address = self.symbols.get_iterator(self.iterators[-1])
+            address, bound_address = self.symbol_table.get_iterator(self.iterators[-1])
             self.emit(f"STORE {address}")
         else:
             self.prepere_constants(constants)
+            
 
         if downto:
-            operation = "SUB 1"
+            operation = "SUB 11"
         else:
-            operation = "ADD 1"
+            operation = "ADD 11"
 
         self.iterators.append(iterator)
+        
         start_addr, end_addr = self.symbol_table.add_iterator(iterator)
+        print(self.symbol_table.get_iterator(iterator))
+        print(self.symbol_table.is_iterator(iterator))
+
 
         self.emit("SET 1")
-        self.emit("STORE 1")
+        self.emit("STORE 11")
 
         self.generate_expression(start)
         self.emit(f"STORE {start_addr}")
@@ -209,9 +215,9 @@ class CodeGenerator:
     def check_condition(self, condition):
         
         self.generate_expression(condition[2])
-        self.emit("STORE 2")
+        self.emit("STORE 11")
         self.generate_expression(condition[1])
-        self.emit("SUB 2")
+        self.emit("SUB 11")
 
         match condition[0]:
             case ("GREATER"):
@@ -249,19 +255,19 @@ class CodeGenerator:
                     raise Exception(f"Unknown variable {var[1]}.")
             elif var[0] == "ARRAY":
                 array_name, index = var[1], var[2]
-                address = self.handle_array_index(array_name, index)
+                address = self.handle_array_index(array_name, index, 14)
                 if(address != 0):
                     self.emit(f"GET {address}")
                 else:
                     self.emit(f"GET 0")
-                    self.emit(f"STOREI 1")
+                    self.emit(f"STOREI 14")
         else:
             # Zwrócona nazwa pojedynczej zmiennej lub iteratora
             if var in self.symbol_table:
                 self.symbol_table[var].initialized = True
                 address = self.symbol_table.get_pointer(var)    
             else:
-                address = self.symbol_table.get_iterator(var) #idk czy potrzeba tego else???
+                address, add2 = self.symbol_table.get_iterator(var) #idk czy potrzeba tego else???
                 
             self.emit(f"GET {address}")
 
@@ -274,17 +280,17 @@ class CodeGenerator:
             if isinstance(value[1], tuple):
                 if value[1][0] == "UNDECLARED":
                     if value[1][1] in self.symbol_table.iterators:
-                        iterator = self.symbol_table.get_iterator(value[1][1])
+                        iterator, add2 = self.symbol_table.get_iterator(value[1][1])
                         self.emit(f"PUT {iterator.base_memory_index}")
                     else:
                         raise Exception(f"Undeclared variable '{value[1][1]}'.")
                 elif value[1][0] == "ARRAY":
                     array_name, index  = value[1][1], value[1][2]
-                    address = self.handle_array_index(array_name, index)
+                    address = self.handle_array_index(array_name, index, 14)
                     if(address != 0):
                         self.emit(f"PUT {address}")
                     else:
-                        self.emit(f"LOADI 1")
+                        self.emit(f"LOADI 14")
                         self.emit(f"PUT 0")
                 else:
                     raise Exception(f"Invalid ID value '{value[1]}'.")
@@ -302,9 +308,6 @@ class CodeGenerator:
         """
         Obsługuje przypisanie wartości do zmiennej lub elementu tablicy.
         """
-        # Generowanie kodu dla wyrażenia (prawa strona przypisania)
-        #expr_code = self.generate_expression(expression)
-
         if isinstance(var, tuple):  # Jeżeli zmienna to np. tablica z indeksem
             if var[0] == "UNDECLARED":
                 # Próba przypisania do niezadeklarowanej zmiennej lub iteratora
@@ -315,12 +318,12 @@ class CodeGenerator:
 
             elif var[0] == "ARRAY":
                 array_name, index  = var[1], var[2]
-                address = self.handle_array_index(array_name, index)
+                address = self.handle_array_index(array_name, index, 14)
                 self.generate_expression(expression)
                 if(address != 0):
                     self.emit(f"STORE {address}")
                 else:
-                    self.emit(f"STOREI 1")
+                    self.emit(f"STOREI 14")
         else:
             # Zwykła zmienna (x := ...)
             if isinstance(var, str):
@@ -590,7 +593,7 @@ class CodeGenerator:
             # Obsługa niezadeklarowanych zmiennych
             if arg_expression[1] in self.symbol_table.iterators:
                 # Jeśli to iterator, pobierz jego adres i załaduj do akumulatora
-                iterator_address = self.symbol_table.get_iterator(arg_expression[1])
+                iterator_address, add2 = self.symbol_table.get_iterator(arg_expression[1])
                 self.emit(f"LOAD {iterator_address}")
             else:
                 raise Exception(f"Undeclared variable '{arg_expression[1]}'.")
@@ -599,10 +602,10 @@ class CodeGenerator:
             array_name, index = arg_expression[1], arg_expression[2]
 
             # Obsługa indeksu tablicy
-            address = self.handle_array_index(array_name, index)
+            address = self.handle_array_index(array_name, index, 15)
             
             if address == 0:  # Użycie adresowania pośredniego
-                self.emit(f"LOADI 1")  # Wartość w pamięci pod adresem w komórce 1
+                self.emit(f"LOADI 15")  # Wartość w pamięci pod adresem w komórce 1
             else:
                 self.emit(f"LOAD {address}")  # Wartość pod stałym adresem
         elif isinstance(arg_expression[0], str):
@@ -616,7 +619,7 @@ class CodeGenerator:
             raise Exception(f"Invalid expression ID format: '{arg_expression}'.")
 
 
-    def handle_array_index(self, array_name, index):
+    def handle_array_index(self, array_name, index, memory_cell):
         first_index = self.symbol_table[array_name].first_index
         memory_of_first_index = self.symbol_table.get_pointer([array_name, first_index])
         array_offset = memory_of_first_index - first_index
@@ -626,21 +629,22 @@ class CodeGenerator:
         elif isinstance(index, tuple) and index[0] == "ID":
             if isinstance(index[1], tuple) and index[1][0] == "UNDECLARED":
                 if index[1][1] in self.symbol_table.iterators:
-                    iterator_address = self.symbol_table.get_iterator(index[1][1])
+                    iterator_address, add2 = self.symbol_table.get_iterator(index[1][1])
                     self.emit(f"SET {array_offset}")
                     self.emit(f"ADD {iterator_address}")
-                    self.emit(f"STORE 1")
+                    self.emit(f"STORE {memory_cell}")
                     #TODO: sprawdzić, czy nie wyszło za zakres
                 else:
                     raise Exception(f"Undeclared index variable '{index[1][1]}'.")
                 
             elif isinstance(index[1], str):  # Znana zmienna
+                
                 variable_address = self.symbol_table.get_pointer(index[1])
                 if not self.symbol_table[index[1]].initialized:
                     raise Exception(f"Index variable '{index[1]}' is not initialized.")
                 self.emit(f"SET {array_offset}")
                 self.emit(f"ADD {variable_address}")
-                self.emit(f"STORE 1")
+                self.emit(f"STORE {memory_cell}")
                 #TODO: sprawdzić, czy nie wyszło za zakres
             else:
                 raise Exception(f"Invalid index type '{index}'.")

@@ -49,7 +49,7 @@ class Procedure:
 class SymbolTable(dict):
     def __init__(self):
         super().__init__()
-        self.memory_counter = 10
+        self.memory_counter = 20
         self.iterators = {}
         self.procedures = {}
         self.constants = {}
@@ -70,14 +70,15 @@ class SymbolTable(dict):
         self.memory_counter += array_size
 
     def add_iterator(self, name):
-        if name in self.iterators:
-            raise ValueError(f"Iterator '{name}' already declared.")
         limit_memory = self.memory_counter
         iterator = Iterator(self.memory_counter + 1, limit_memory) 
         self.iterators[name] = iterator
         self.memory_counter += 2
         return self.memory_counter - 1, limit_memory
-
+    
+    def is_iterator(self, value):
+        return value in self.iterators
+    
     def add_procedure(self, name, params, local_variables, command):
         if name in self.procedures:
             raise ValueError(f"Redeclaration of procedure '{name}'.")
