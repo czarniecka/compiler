@@ -2,6 +2,7 @@ class Variable:
     def __init__(self, base_memory_index):
         self.base_memory_index = base_memory_index
         self.initialized = False
+        self.is_local = False
 
     def __repr__(self):
         return str(self.base_memory_index)
@@ -44,7 +45,7 @@ class Procedure:
     def bind_parameters(self, args):
         if len(args) != len(self.params):
             raise ValueError(f"Incorrect number of arguments for procedure {self.name}.")
-        return dict(zip(self.params, args))
+        return {param: args[i] for i, param in enumerate(self.params)}
 
 class SymbolTable(dict):
     def __init__(self):
@@ -79,12 +80,38 @@ class SymbolTable(dict):
     def is_iterator(self, value):
         return value in self.iterators
     
-    def add_procedure(self, name, params, local_variables, command):
+    def add_procedure(self, name, params, local_variables, commands):
+        
         if name in self.procedures:
             raise ValueError(f"Redeclaration of procedure '{name}'.")
-        self.procedures[name] = Procedure(name, self.memory_counter, params, local_variables, command)
+        if name in self:
+            raise Exception(f"Overloading name of the procedure {name}.")
+        
+        self.procedures[name] = Procedure(name, self.memory_counter, params, local_variables, commands)
         self.memory_counter += len(params) + len(local_variables)
 
+        self.validate_procedure(name)
+
+    def validate_procedure(self, name):
+        _, _, _, _, commands = self.get_procedure(name)
+
+        for command in commands:
+            if command[0] == "PROC_CALL":
+                called_proc = command[1]
+                if called_proc not in self.procedures:
+                    raise Exception(f"Procedure {called_proc} called in {name} is not defined")
+                if list(self.procedures.keys()).index(called_proc) > list(self.procedures.keys()).index(name):
+                    raise Exception(f"Procedure {called_proc} must be defined before it is called in {name}")
+
+            
+    def get_procedure(self, name):
+        if name in self.procedures:
+            procedure = self.procedures[name]
+            return procedure.name, procedure.base_memory_index, procedure.params, procedure.local_variables, procedure.commands
+        else:
+            raise ValueError(f"Undeclared procedure '{name}'.")
+        
+        
     def add_const(self, value):
         if value in self.constants:
             return self.constants[value]
@@ -115,14 +142,7 @@ class SymbolTable(dict):
             return iterator.base_memory_index, iterator.limit_memory
         else:
             raise ValueError(f"Undeclared iterator '{name}'.")
-        
-    def get_procedure(self, name):
-        if name in self.procedures:
-            procedure = self.procedures[name]
-            return procedure.name, procedure.base_memory_index, procedure.params, procedure.local_variables, procedure.commands
-        else:
-            raise ValueError(f"Undeclared procedure '{name}'.")
-        
+
     def get_pointer(self, name):
         if type(name) == str:
             return self.get_variable(name).base_memory_index

@@ -20,26 +20,24 @@ class CodeGenerator:
 
     # Obsługa procedur
     def generate_procedures(self, procedures):
+        defined_procedures = set()
+        
         for procedure in procedures:
-            if procedure[0] == "PROCEDURE_DEC":
-                _, name_params, declarations, commands = procedure
-                self.symbol_table.add_procedure(name_params[0], name_params[1], declarations, commands)
-            elif procedure[0] == "PROCEDURE":
-                _, name_params, commands = procedure
-                self.symbol_table.add_procedure(name_params[0], name_params[1], [], commands) 
+            if procedure[0] == "PROCEDURE":
+                _, proc_head, declarations, commands = procedure
+                name, params = proc_head
+                
+                if name in defined_procedures:
+                    raise Exception(f"Procedure {name} redefined.")
+                defined_procedures.add(name)
 
-    def allocate_local_variables(self, declarations):
-        local_addresses = []
-        for var in declarations:
-            address = self.symbol_table.add_variable(var[0][1])
-            local_addresses.append(address)
-        return local_addresses
-
-    def free_local_variables(self, local_addresses):
-        for address in local_addresses:
-            self.symbol_table.remove_variable(address)
-
-
+                # Sprawdzanie prefiksu 'T' dla tablic
+                for param in params:
+                    if isinstance(param, tuple) and not param[0].startswith("T"):
+                        raise Exception(f"Array parameter {param} must start with 'T'.")
+                
+                self.symbol_table.add_procedure(name, params, declarations, commands)
+                
     # Obsługa sekcji MAIN
     def generate_main(self, main):
         if main[0] == "MAIN_DEC":
@@ -76,22 +74,24 @@ class CodeGenerator:
             case ("FORDOWNTO", iterator, start, end, commands, constants):
                 self.handle_for(iterator, start, end, commands, True, constants)
             case ("PROC_CALL", name, args):
-                if name in self.symbol_table.procedures:
-                    _, _, params, local_variables, commands = self.symbol_table.get_procedure(name)
-
-                    if len(args) != len(params):
-                        raise Exception(f"Incorrect number of arguments for procedure {name}. Expected {len(params)}, got {len(args)}.")
-                    
-                    param_addresses = []
-                    for (arg_value, param) in zip(args, params):
-                        param_address = self.symbol_table.get_pointer(param)
-                        self.handle_expressionID(arg_value)
-                        self.emit(f"STORE {param_address}")
-                        param_addresses.append(param_address)
-
-                    self.generate_commands(commands)
-                else: 
+                if name not in self.symbol_table.procedures:
                     raise Exception(f"Unknown procedure {name}.")
+                
+                _, _, params, local_variables, commands = self.symbol_table.get_procedure(name)
+                
+                if len(args) != len(params):
+                    raise Exception(f"Incorrect number of arguments for procedure {name}. Expected {len(params)}, got {len(args)}.")
+                
+                #if name == self.current_procedure:
+                #    raise Exception(f"Recursive call detected in procedure {name}.")
+                
+                for (arg_value, param) in zip(args, params):
+                    arg_address = self.symbol_table.get_pointer(arg_value)
+                    param_address = self.symbol_table.get_pointer(param)
+                    self.emit(f"LOAD {arg_address}")
+                    self.emit(f"STORE {param_address}")
+                
+                self.generate_commands(commands)
 
     def handle_if(self, condition, commands):
         condition_return = self.simplify_condition(condition)
