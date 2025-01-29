@@ -38,7 +38,7 @@ class Procedure:
         self.commands = commands
 
     def __repr__(self):
-        return f"Procedure({self.name} at {self.base_memory_index} (params={self.params}, local_variables={self.local_variables})"
+        return f"{self.name}, {self.base_memory_index}, {self.params}, {self.local_variables}, {self.commands}"
     
     #Mapowanie????
     def bind_parameters(self, args):
@@ -118,7 +118,8 @@ class SymbolTable(dict):
         
     def get_procedure(self, name):
         if name in self.procedures:
-            return self.procedures[name]
+            procedure = self.procedures[name]
+            return procedure.name, procedure.base_memory_index, procedure.params, procedure.local_variables, procedure.commands
         else:
             raise ValueError(f"Undeclared procedure '{name}'.")
         
@@ -133,3 +134,9 @@ class SymbolTable(dict):
             return self.constants[value]
         else:
             raise ValueError(f"Constant value '{value}' not found.")
+        
+    def remove_variable(self, name):
+        if name in self:
+            del self[name]
+        else:
+            raise ValueError(f"Variable '{name}' not found.")

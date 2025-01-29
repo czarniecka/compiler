@@ -18,13 +18,27 @@ class CodeGenerator:
             self.emit("HALT")
         return "\n".join(self.code)
 
-    # Obsługa procedur (w przyszłości)
+    # Obsługa procedur
     def generate_procedures(self, procedures):
         for procedure in procedures:
-            _, name, declarations, commands = procedure
-            self.emit(f"{name}:")
-            self.generate_commands(commands)
-            self.emit("RTRN p0")  # Później obsłużyć odpowiednio
+            if procedure[0] == "PROCEDURE_DEC":
+                _, name_params, declarations, commands = procedure
+                self.symbol_table.add_procedure(name_params[0], name_params[1], declarations, commands)
+            elif procedure[0] == "PROCEDURE":
+                _, name_params, commands = procedure
+                self.symbol_table.add_procedure(name_params[0], name_params[1], [], commands) 
+
+    def allocate_local_variables(self, declarations):
+        local_addresses = []
+        for var in declarations:
+            address = self.symbol_table.add_variable(var[0][1])
+            local_addresses.append(address)
+        return local_addresses
+
+    def free_local_variables(self, local_addresses):
+        for address in local_addresses:
+            self.symbol_table.remove_variable(address)
+
 
     # Obsługa sekcji MAIN
     def generate_main(self, main):
@@ -62,7 +76,22 @@ class CodeGenerator:
             case ("FORDOWNTO", iterator, start, end, commands, constants):
                 self.handle_for(iterator, start, end, commands, True, constants)
             case ("PROC_CALL", name, args):
-                pass
+                if name in self.symbol_table.procedures:
+                    _, _, params, local_variables, commands = self.symbol_table.get_procedure(name)
+
+                    if len(args) != len(params):
+                        raise Exception(f"Incorrect number of arguments for procedure {name}. Expected {len(params)}, got {len(args)}.")
+                    
+                    param_addresses = []
+                    for (arg_value, param) in zip(args, params):
+                        param_address = self.symbol_table.get_pointer(param)
+                        self.handle_expressionID(arg_value)
+                        self.emit(f"STORE {param_address}")
+                        param_addresses.append(param_address)
+
+                    self.generate_commands(commands)
+                else: 
+                    raise Exception(f"Unknown procedure {name}.")
 
     def handle_if(self, condition, commands):
         condition_return = self.simplify_condition(condition)
@@ -125,9 +154,10 @@ class CodeGenerator:
         start_of_condition = len(self.code)
         self.check_condition(condition)
         end_of_condition = len(self.code)
-        for i in range(start_of_condition, end_of_condition):
+        for i in range(start_of_condition, end_of_condition ):
             self.code[i] = self.code[i].replace('finish', str(2))
-        self.emit(f"JUMP -{end_of_condition - start_of_loop}")
+        self.emit(f"JUMP 2")
+        self.emit(f"JUMP -{end_of_condition - start_of_loop + 1}")
 
     def handle_for(self, iterator, start, end, commands, downto, constants):
         # TODO: obsługa błędu: a > b przy to, a< b przy downto
@@ -136,7 +166,10 @@ class CodeGenerator:
                 raise Exception(f"Invalid for loop scope.")
             elif start[1] < end[1] and downto == True:
                 raise Exception(f"Invalid for loop scope.")
-            
+
+        if iterator in self.symbol_table:
+            raise Exception(f"Overloading name of iterator {iterator}.")
+
         if self.iterators:
             address, bound_address = self.symbol_table.get_iterator(self.iterators[-1])
             self.emit(f"STORE {address}")
