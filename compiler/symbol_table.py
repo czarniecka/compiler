@@ -1,8 +1,9 @@
 class Variable:
-    def __init__(self, base_memory_index):
+    def __init__(self, base_memory_index, is_local=False, is_parameter=False):
         self.base_memory_index = base_memory_index
+        self.is_local = is_local  # Zmienna lokalna w procedurze
+        self.is_parameter = is_parameter  # Parametr formalny procedury
         self.initialized = False
-        self.is_local = False
 
     def __repr__(self):
         return str(self.base_memory_index)
@@ -34,13 +35,13 @@ class Procedure:
     def __init__(self, name, base_memory_index, params, local_variables, commands):
         self.name = name
         self.base_memory_index = base_memory_index
-        self.params = {param: base_memory_index + i for i, param in enumerate(params)}
-        self.local_variables = {variables: base_memory_index + len(params) + i for i, variables in enumerate(local_variables)}  
+        self.params = {param: Variable(base_memory_index + i, is_parameter=True) for i, param in enumerate(params)}
+        self.local_variables = {var: Variable(base_memory_index + len(params) + i, is_local=True) for i, var in enumerate(local_variables)}
         self.commands = commands
 
     def __repr__(self):
         return f"{self.name}, {self.base_memory_index}, {self.params}, {self.local_variables}, {self.commands}"
-    
+
     #Mapowanie????
     def bind_parameters(self, args):
         if len(args) != len(self.params):
@@ -54,6 +55,7 @@ class SymbolTable(dict):
         self.iterators = {}
         self.procedures = {}
         self.constants = {}
+        self.current_procedure = None 
 
     def add_variable(self, name):
         if name in self:
@@ -81,17 +83,18 @@ class SymbolTable(dict):
         return value in self.iterators
     
     def add_procedure(self, name, params, local_variables, commands):
-        
         if name in self.procedures:
             raise ValueError(f"Redeclaration of procedure '{name}'.")
         if name in self:
             raise Exception(f"Overloading name of the procedure {name}.")
-        
+        self.current_procedure = name
         self.procedures[name] = Procedure(name, self.memory_counter, params, local_variables, commands)
         self.memory_counter += len(params) + len(local_variables)
 
         self.validate_procedure(name)
 
+        self.current_procedure = None  # Resetowanie po zakończeniu
+    
     def validate_procedure(self, name):
         _, _, _, _, commands = self.get_procedure(name)
 
@@ -120,7 +123,9 @@ class SymbolTable(dict):
         return self.memory_counter - 1
 
     def get_variable(self, name):
-        if name in self:
+        if self.current_procedure and name in self.procedures[self.current_procedure].local_variables:
+            return self.procedures[self.current_procedure].local_variables[name]
+        elif name in self:
             return self[name]
         elif name in self.iterators:
             return self.iterators[name]
@@ -144,7 +149,9 @@ class SymbolTable(dict):
             raise ValueError(f"Undeclared iterator '{name}'.")
 
     def get_pointer(self, name):
-        if type(name) == str:
+        if self.current_procedure and name in self.procedures[self.current_procedure].local_variables:
+            return self.procedures[self.current_procedure].local_variables[name].base_memory_index
+        elif type(name) == str:
             return self.get_variable(name).base_memory_index
         else:
             return self.get_array_at(name[0], name[1])

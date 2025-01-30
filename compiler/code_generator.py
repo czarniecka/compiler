@@ -4,6 +4,7 @@ class CodeGenerator:
         self.symbol_table = symbol_table  # symbol_table to tablica symboli zawierająca informacje o zmiennych
         self.code = []  # przechowuje generowane instrukcje
         self.iterators = []
+        self.current_procedure = None
 
     # Emitowanie kodu
     def emit(self, instruction):
@@ -35,8 +36,9 @@ class CodeGenerator:
                 for param in params:
                     if isinstance(param, tuple) and not param[0].startswith("T"):
                         raise Exception(f"Array parameter {param} must start with 'T'.")
-                
+                    
                 self.symbol_table.add_procedure(name, params, declarations, commands)
+                
                 
     # Obsługa sekcji MAIN
     def generate_main(self, main):
@@ -49,11 +51,14 @@ class CodeGenerator:
 
     # Generowanie kodu dla listy komend
     def generate_commands(self, commands):
+        print("------------------------------")
+        print(self.symbol_table)
         for command in commands:
             self.generate_command(command)
 
     # Generowanie kodu dla pojedynczej komendy
     def generate_command(self, command):
+
         match command:
             case ("ASSIGN", var, expression):
                 self.handle_assign(var, expression)
@@ -74,24 +79,51 @@ class CodeGenerator:
             case ("FORDOWNTO", iterator, start, end, commands, constants):
                 self.handle_for(iterator, start, end, commands, True, constants)
             case ("PROC_CALL", name, args):
+                # Procedura musi istnieć
                 if name not in self.symbol_table.procedures:
                     raise Exception(f"Unknown procedure {name}.")
                 
+                # Argumenty muszą być wcześniej zadeklarowane jako zmienne
+                for arg in args:
+                    if arg not in self.symbol_table:
+                        raise Exception(f"Undeclared argument {arg}.")
+
+                # Obsługa rekurencji
+                if name == self.current_procedure:
+                    raise Exception(f"Recursive call detected in procedure {name}.")
+                
+                self.current_procedure = name
                 _, _, params, local_variables, commands = self.symbol_table.get_procedure(name)
                 
+                # Mapowanie
                 if len(args) != len(params):
                     raise Exception(f"Incorrect number of arguments for procedure {name}. Expected {len(params)}, got {len(args)}.")
                 
-                #if name == self.current_procedure:
-                #    raise Exception(f"Recursive call detected in procedure {name}.")
-                
-                for (arg_value, param) in zip(args, params):
+                for param, arg_value in zip(params, args):
+                    if param not in self.symbol_table:
+                        self.symbol_table.add_variable(param)
                     arg_address = self.symbol_table.get_pointer(arg_value)
                     param_address = self.symbol_table.get_pointer(param)
                     self.emit(f"LOAD {arg_address}")
                     self.emit(f"STORE {param_address}")
-                
+
+                #return_address = len(self.code)
+                #self.emit(f"SET {return_address + 1}")
+                #self.emit(f"STORE 12")
                 self.generate_commands(commands)
+
+                # Zapisanie zaktualizowanych argumentów IN-OUT
+                for param, arg_value in zip(params, args):
+                    if isinstance(self.symbol_table.get_variable(param), Variable) and self.symbol_table.get_variable(param).is_parameter:
+                        param_address = self.symbol_table.get_pointer(param)
+                        arg_address = self.symbol_table.get_pointer(arg_value)
+                        self.emit(f"LOAD {param_address}")
+                        self.emit(f"STORE {arg_address}")
+
+                self.current_procedure = None
+
+                # Powrót
+                #self.emit(f"RTRN 12")
 
     def handle_if(self, condition, commands):
         condition_return = self.simplify_condition(condition)
@@ -337,7 +369,7 @@ class CodeGenerator:
             raise Exception(f"Unsupported value type '{value[0]}' for WRITE.")
         
     # Obsługa komendy ASSIGN
-    def handle_assign(self, var, expression):
+    def handle_assign(self, var, expression):   
         """
         Obsługuje przypisanie wartości do zmiennej lub elementu tablicy.
         """
@@ -347,7 +379,11 @@ class CodeGenerator:
                 if var[1] in self.symbol_table.iterators:
                     raise Exception(f"Cannot assign to iterator '{var[1]}'.")
                 else:
-                    raise Exception(f"Undeclared variable '{var[1]}'.")
+                    # TODO: sprawdzić, czy jest zmienną lokalną albo coś nie wiem
+                    address = self.symbol_table.get_pointer(var[1])
+                    self.generate_expression(expression)
+                    self.emit(f"STORE {address}")
+                    #raise Exception(f"Undeclared variable '{var[1]}'.")
 
             elif var[0] == "ARRAY":
                 array_name, index  = var[1], var[2]
@@ -628,8 +664,13 @@ class CodeGenerator:
                 # Jeśli to iterator, pobierz jego adres i załaduj do akumulatora
                 iterator_address, add2 = self.symbol_table.get_iterator(arg_expression[1])
                 self.emit(f"LOAD {iterator_address}")
+            elif arg_expression[1] in self.symbol_table.procedures:
+                pass
             else:
-                raise Exception(f"Undeclared variable '{arg_expression[1]}'.")
+                # TODO: zmienna lokalna?????
+                address = self.symbol_table.get_pointer(arg_expression[1])
+                self.emit(f"LOAD {address}")
+                #raise Exception(f"Undeclared variable '{arg_expression[1]}'.")
         elif arg_expression[0] == "ARRAY":
             # Obsługa tablic
             array_name, index = arg_expression[1], arg_expression[2]
@@ -646,7 +687,7 @@ class CodeGenerator:
             if variable_name in self.symbol_table:
                 address = self.symbol_table.get_pointer(variable_name)
                 self.emit(f"LOAD {address}")
-            else:
+            else:      
                 raise Exception(f"Unknown variable '{variable_name}'.")
         else:
             raise Exception(f"Invalid expression ID format: '{arg_expression}'.")
