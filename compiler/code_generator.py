@@ -14,8 +14,13 @@ class CodeGenerator:
     def generate(self, ast):
         if ast[0] == "PROGRAM":
             _, procedures, main = ast
+            jump_to_main = len(self.code)
+            self.emit("JUMP placeholder")
             self.generate_procedures(procedures)
+            main_start = len(self.code)
+            self.code[jump_to_main] = f"JUMP {main_start}"
             self.generate_main(main)
+            print(self.symbol_table)
             self.emit("HALT")
         return "\n".join(self.code)
 
@@ -41,26 +46,19 @@ class CodeGenerator:
                 self.symbol_table.add_procedure(name, params, declarations, commands)
                 
                 self.symbol_table.current_procedure = name
-                print(self.symbol_table.current_procedure)
 
-                self.emit(f"# PROCEDURE {name}") 
-
-                # Najpierw dodajemy JUMP, aby ominąć kod procedury przy uruchomieniu programu
-                jump_to_end = len(self.code)  # Adres, dokąd ma skakać program
-                self.emit(f"JUMP placeholder")  # Na razie zostawiamy "placeholder"
-                
                 # Teraz rejestrujemy adres procedury w symbol_table
                 proc_start = len(self.code)  # Tutaj zacznie się kod procedury
-                self.symbol_table.procedures[name].base_memory_index = proc_start
+                #self.symbol_table.procedures[name].base_memory_index = proc_start
+                if self.symbol_table.procedures[name].base_memory_index is None:
+                    self.symbol_table.procedures[name].base_memory_index = proc_start
+
                 
                 # Generujemy kod procedury
                 self.generate_commands(commands)
-                
+                return_memory_index = self.symbol_table.procedures[name].local_variables["RETURN"].base_memory_index
                 # Powrót z procedury (return)
-                self.emit("RTRN 19")
-
-                # Aktualizacja JUMP na początku procedury, aby skakał do końca kodu procedury
-                self.code[jump_to_end] = f"JUMP {len(self.code) - 1}"
+                self.emit(f"RTRN {return_memory_index - 1}")
 
                 # Aktualizacja adresu startowego procedury w tablicy symboli
                 self.symbol_table.procedures[name].base_memory_index = proc_start
@@ -134,14 +132,17 @@ class CodeGenerator:
             self.emit(f"SET {arg_address}")  # Przekazujemy adres argumentu do parametru
             self.emit(f"STORE {param_address}")
 
-        proc_base = self.symbol_table.procedures[name].base_memory_index
-
-        # Ustawienie adresu powrotu do pierwszej linijki po wywołaniu
-        return_address = len(self.code) + 2
-        self.emit(f"SET {return_address}")
-        self.emit(f"STORE 19")  # Rejestr powrotu
-
+        
+        # Przechowanie wartości rejestru powrotu w tablicy symboli
+        return_address = len(self.code) + 3
+        self.emit(f"SET {return_address}")  # Ustawiamy adres powrotu w rejestrze
+        
+        # Zapisujemy adres powrotu do komórki pamięci procedury
+        return_memory_index = self.symbol_table.procedures[name].local_variables["RETURN"].base_memory_index
+        self.emit(f"STORE {return_memory_index -1 }")  # Zapisujemy do komórki procedury
+        
         # Skok do procedury
+        proc_base = self.symbol_table.procedures[name].base_memory_index
         self.emit(f"JUMP {proc_base - len(self.code)}")
 
         self.current_procedure = None
@@ -163,7 +164,6 @@ class CodeGenerator:
 
     def handle_ifelse(self, condition, then_commands, else_commands):
         condition_return = self.simplify_condition(condition)
-        print(condition_return)
         if isinstance(condition_return, bool):
             if condition_return:
                 self.generate_commands(then_commands)
@@ -184,7 +184,6 @@ class CodeGenerator:
 
     def handle_while(self, condition, commands):
         condition_return = self.simplify_condition(condition)
-        print(condition_return)
         if isinstance(condition_return, bool):
             if condition_return:
                 #TODO: obsługa stałych
@@ -202,7 +201,6 @@ class CodeGenerator:
                 self.code[i] = self.code[i].replace('finish', str(loop_end - i))
 
     def handle_repeat(self, condition, commands):
-        print(commands)
         start_of_loop = len(self.code)
         self.generate_commands(commands)
         start_of_condition = len(self.code)
@@ -239,8 +237,6 @@ class CodeGenerator:
         self.iterators.append(iterator)
         
         start_addr, end_addr = self.symbol_table.add_iterator(iterator)
-        print(self.symbol_table.get_iterator(iterator))
-        print(self.symbol_table.is_iterator(iterator))
 
 
         self.emit("SET 1")
@@ -443,7 +439,6 @@ class CodeGenerator:
             else:
                 raise Exception(f"Assigning to array {var} with no index provided.")
 
-    # Generowanie kodu dla wyrażeń
     def generate_expression(self, expression):
         if expression[0] == "NUM":  # Stała liczbowa
             self.emit(f"SET {expression[1]}")
@@ -731,7 +726,6 @@ class CodeGenerator:
                 raise Exception(f"Unknown variable '{variable_name}'.")
         else:
             raise Exception(f"Invalid expression ID format: '{arg_expression}'.")
-
 
     def handle_array_index(self, array_name, index, memory_cell):
         first_index = self.symbol_table[array_name].first_index

@@ -32,15 +32,16 @@ class Array:
         return str(self.base_memory_index)
     
 class Procedure:
-    def __init__(self, name, base_memory_index, params, local_variables, commands):
+    def __init__(self, name, base_memory_index, params, local_variables, commands, return_register):
         self.name = name
         self.base_memory_index = base_memory_index
         self.params = params
         self.local_variables = local_variables
         self.commands = commands
+        self.return_register = f"RETURN_{name}"
 
     def __repr__(self):
-        return f"{self.name}, {self.base_memory_index}, {self.params}, {self.local_variables}, {self.commands}"
+        return f"{self.name}, {self.base_memory_index}, {self.params}, {self.local_variables}, {self.commands}, {self.return_register}"
 
     #Mapowanie????
     def bind_parameters(self, args):
@@ -109,18 +110,23 @@ class SymbolTable(dict):
         for param in params:
             
             param_memory[param] = Variable(self.memory_counter, is_parameter=True)
-            print(param_memory[param])
             self.memory_counter += 1  # Każdy parametr dostaje jedno miejsce na wskaźnik
 
         # Przydzielamy miejsce na zmienne lokalne
         local_memory = {}
         for var in local_variables:
             local_memory[var] = Variable(self.memory_counter, is_local=True)
-            print(local_memory[var])
             self.memory_counter += 1
-        print(param_memory, local_memory)
+
+        # Dodanie zmiennej dla rejestru powrotu
+        return_memory = Variable(self.memory_counter, is_local=True)
+        local_memory["RETURN"] = return_memory
+        self.memory_counter += 1
+
         # Tworzymy obiekt procedury
-        self.procedures[name] = Procedure(name, self.memory_counter, param_memory, local_memory, commands)
+        #self.procedures[name] = Procedure(name, self.memory_counter, param_memory, local_memory, commands)
+        if name not in self.procedures:
+            self.procedures[name] = Procedure(name, None, param_memory, local_memory, commands, return_memory)  # Ustawiamy `None`, dopóki nie będzie znany adres
         
         self.validate_procedure(name)
         self.current_procedure = None  # Reset po zakończeniu
