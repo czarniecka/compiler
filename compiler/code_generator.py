@@ -108,8 +108,6 @@ class CodeGenerator:
                 self.handle_proc_call(name, args)
                 
     def handle_proc_call(self, name, args):
-        print("DUPA")
-        print(args)
         # Procedura musi istnieć
         if name not in self.symbol_table.procedures:
             raise Exception(f"Unknown procedure {name}.")
@@ -135,7 +133,6 @@ class CodeGenerator:
             
             param_address = self.symbol_table.get_pointer_proc(param)  # Adres parametru
             arg_address = self.symbol_table.get_pointer(arg)  # Adres argumentu
-            print(param, param_address, arg, arg_address)
             self.emit(f"SET {arg_address}")  # Przekazujemy adres argumentu do parametru
             self.emit(f"STORE {param_address}")
 
@@ -707,13 +704,14 @@ class CodeGenerator:
                 # Jeśli to iterator, pobierz jego adres i załaduj do akumulatora
                 iterator_address, add2 = self.symbol_table.get_iterator(arg_expression[1])
                 self.emit(f"LOAD {iterator_address}")
-            elif arg_expression[1] in self.symbol_table.procedures:
-                pass
+            elif isinstance(self.symbol_table.get_pointer_proc(arg_expression[1]), Variable):
+                addr = self.symbol_table.get_pointer_proc(arg_expression[1])
+                self.emit(f"LOADI {addr}")
             else:
                 # TODO: zmienna lokalna?????
-                address = self.symbol_table.get_pointer(arg_expression[1])
-                self.emit(f"LOAD {address}")
-                #raise Exception(f"Undeclared variable '{arg_expression[1]}'.")
+                #address = self.symbol_table.get_pointer(arg_expression[1])
+                #self.emit(f"LOAD {address}")
+                raise Exception(f"Undeclared variable '{arg_expression[1]}'.")
         elif arg_expression[0] == "ARRAY":
             # Obsługa tablic
             array_name, index = arg_expression[1], arg_expression[2]
