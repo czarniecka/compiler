@@ -35,8 +35,8 @@ class Procedure:
     def __init__(self, name, base_memory_index, params, local_variables, commands):
         self.name = name
         self.base_memory_index = base_memory_index
-        self.params = {param: Variable(base_memory_index + i, is_parameter=True) for i, param in enumerate(params)}
-        self.local_variables = {var: Variable(base_memory_index + len(params) + i, is_local=True) for i, var in enumerate(local_variables)}
+        self.params = params
+        self.local_variables = local_variables
         self.commands = commands
 
     def __repr__(self):
@@ -58,10 +58,24 @@ class SymbolTable(dict):
         self.current_procedure = None 
 
     def add_variable(self, name):
-        if name in self:
-            raise ValueError(f"Variable '{name}' already declared.")
-        self[name] = Variable(self.memory_counter)
-        self.memory_counter += 1
+        if self.current_procedure:
+            procedure = self.procedures[self.current_procedure]
+            
+            # Jeśli zmienna już istnieje jako lokalna, błąd
+            if name in procedure.local_variables:
+                raise ValueError(f"Local variable '{name}' already declared in procedure {self.current_procedure}.")
+            
+            # Dodajemy zmienną lokalną do procedury
+            procedure.local_variables[name] = Variable(self.memory_counter, is_local=True)
+        
+        else:
+            # Jeśli jesteśmy poza procedurą (np. w MAIN), dodajemy do globalnego zakresu
+            if name in self:
+                raise ValueError(f"Variable '{name}' already declared globally.")
+            self[name] = Variable(self.memory_counter)
+
+        self.memory_counter += 1  # Zwiększamy licznik pamięci
+
 
     def add_array(self, name, first_index, last_index):
         if name in self:
@@ -87,13 +101,30 @@ class SymbolTable(dict):
             raise ValueError(f"Redeclaration of procedure '{name}'.")
         if name in self:
             raise Exception(f"Overloading name of the procedure {name}.")
+
         self.current_procedure = name
-        self.procedures[name] = Procedure(name, self.memory_counter, params, local_variables, commands)
-        self.memory_counter += len(params) + len(local_variables)
 
+        # Przydzielamy miejsce na parametry (wskaźniki na argumenty)
+        param_memory = {}
+        for param in params:
+            
+            param_memory[param] = Variable(self.memory_counter, is_parameter=True)
+            print(param_memory[param])
+            self.memory_counter += 1  # Każdy parametr dostaje jedno miejsce na wskaźnik
+
+        # Przydzielamy miejsce na zmienne lokalne
+        local_memory = {}
+        for var in local_variables:
+            local_memory[var] = Variable(self.memory_counter, is_local=True)
+            print(local_memory[var])
+            self.memory_counter += 1
+        print(param_memory, local_memory)
+        # Tworzymy obiekt procedury
+        self.procedures[name] = Procedure(name, self.memory_counter, param_memory, local_memory, commands)
+        
         self.validate_procedure(name)
+        self.current_procedure = None  # Reset po zakończeniu
 
-        self.current_procedure = None  # Resetowanie po zakończeniu
     
     def validate_procedure(self, name):
         _, _, _, _, commands = self.get_procedure(name)
@@ -122,10 +153,8 @@ class SymbolTable(dict):
         self.memory_counter += 1
         return self.memory_counter - 1
 
-    def get_variable(self, name):
-        if self.current_procedure and name in self.procedures[self.current_procedure].local_variables:
-            return self.procedures[self.current_procedure].local_variables[name]
-        elif name in self:
+    def get_variable(self, name):  
+        if name in self:
             return self[name]
         elif name in self.iterators:
             return self.iterators[name]
@@ -148,10 +177,18 @@ class SymbolTable(dict):
         else:
             raise ValueError(f"Undeclared iterator '{name}'.")
 
+    def get_pointer_proc(self, name):
+        if self.current_procedure:
+            procedure = self.procedures[self.current_procedure]
+            if name in procedure.params:
+                return procedure.params[name]  # Parametr przechowuje wskaźnik na argument
+            elif name in procedure.local_variables:
+                return procedure.local_variables[name]  # Normalna zmienna lokalna
+            
     def get_pointer(self, name):
-        if self.current_procedure and name in self.procedures[self.current_procedure].local_variables:
-            return self.procedures[self.current_procedure].local_variables[name].base_memory_index
-        elif type(name) == str:
+        
+
+        if type(name) == str:
             return self.get_variable(name).base_memory_index
         else:
             return self.get_array_at(name[0], name[1])
@@ -167,3 +204,4 @@ class SymbolTable(dict):
             del self[name]
         else:
             raise ValueError(f"Variable '{name}' not found.")
+        
