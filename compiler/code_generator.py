@@ -52,8 +52,6 @@ class CodeGenerator:
                 # Teraz rejestrujemy adres procedury w symbol_table
                 proc_start = len(self.code)  # Tutaj zacznie się kod procedury
                 self.symbol_table.procedures[name].base_memory_index = proc_start
-                print(self.symbol_table.procedures[name].local_variables)
-                print(self.symbol_table.procedures[name].params)
                 
                 # Generujemy kod procedury
                 self.generate_commands(commands)
@@ -482,7 +480,7 @@ class CodeGenerator:
             self.emit("ADD 0")
         else:
             self.emit("SET 0")
-            #self.emit("STORE 5")
+            self.emit("STORE 5")
             self.emit("STORE 6")
 
             self.generate_expression(left_expr)
@@ -561,10 +559,11 @@ class CodeGenerator:
             self.emit("LOAD 3")  # Załaduj wynik do akumulatora
 
     def handle_division(self, left_expr, right_expr):
-        if right_expr[1] == 2:
+        # w modulo nie działa, więc poprawić, albo wywalić
+        if right_expr[1] == "heheheheheheh":
             self.generate_expression(left_expr)
             self.emit("HALF")
-            #self.emit("STORE 3")
+            self.emit("STORE 3")
         #elif right_expr[1] == 1:
             #self.generate_expression(left_expr)
         else:
@@ -573,7 +572,7 @@ class CodeGenerator:
             self.emit("STORE 9")
             # Zerowanie flag znaków
             self.emit("SET 0")
-            #self.emit("STORE 7")
+            self.emit("STORE 7")
             self.emit("STORE 8")
 
             self.generate_expression(left_expr)  # Dzielna
