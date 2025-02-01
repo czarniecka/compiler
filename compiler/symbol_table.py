@@ -38,16 +38,11 @@ class Procedure:
         self.params = params
         self.local_variables = local_variables
         self.commands = commands
-        self.return_register = f"RETURN_{name}"
+        self.return_registers = return_register
+        self.call_count = 0 
 
     def __repr__(self):
         return f"{self.name}, {self.base_memory_index}, {self.params}, {self.local_variables}, {self.commands}, {self.return_register}"
-
-    #Mapowanie????
-    def bind_parameters(self, args):
-        if len(args) != len(self.params):
-            raise ValueError(f"Incorrect number of arguments for procedure {self.name}.")
-        return {param: args[i] for i, param in enumerate(self.params)}
 
 class SymbolTable(dict):
     def __init__(self):
@@ -119,9 +114,12 @@ class SymbolTable(dict):
             self.memory_counter += 1
 
         # Dodanie zmiennej dla rejestru powrotu
-        return_memory = Variable(self.memory_counter, is_local=True)
-        local_memory["RETURN"] = return_memory
-        self.memory_counter += 1
+        #return_memory = Variable(self.memory_counter, is_local=True)
+        #local_memory["RETURN"] = return_memory
+        #self.memory_counter += 1
+        
+        return_memory = [Variable(self.memory_counter + i, is_local=True) for i in range(10)]  # 10 komórek
+        self.memory_counter += 10
 
         # Tworzymy obiekt procedury
         #self.procedures[name] = Procedure(name, self.memory_counter, param_memory, local_memory, commands)

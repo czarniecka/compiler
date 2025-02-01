@@ -20,7 +20,6 @@ class CodeGenerator:
             main_start = len(self.code)
             self.code[jump_to_main] = f"JUMP {main_start}"
             self.generate_main(main)
-            print(self.symbol_table)
             self.emit("HALT")
         return "\n".join(self.code)
 
@@ -53,18 +52,25 @@ class CodeGenerator:
                 if self.symbol_table.procedures[name].base_memory_index is None:
                     self.symbol_table.procedures[name].base_memory_index = proc_start
 
-                
                 # Generujemy kod procedury
                 self.generate_commands(commands)
-                return_memory_index = self.symbol_table.procedures[name].local_variables["RETURN"].base_memory_index
+                #return_memory_index = self.symbol_table.procedures[name].local_variables["RETURN"].base_memory_index
                 # Powrót z procedury (return)
-                self.emit(f"RTRN {return_memory_index - 1}")
+                #self.emit(f"RTRN {return_memory_index}")
+                procedure = self.symbol_table.procedures[name]
 
+                if procedure.call_count >= len(procedure.return_registers):
+                    raise Exception(f"Exceeded maximum call count for procedure {name}.")
+                return_memory_index = procedure.return_registers[procedure.call_count]
+
+                # Ostatnia użyta komórka
+                print(return_memory_index)
+                self.emit(f"RTRN {return_memory_index}")
                 # Aktualizacja adresu startowego procedury w tablicy symboli
                 self.symbol_table.procedures[name].base_memory_index = proc_start
                 #self.symbol_table.current_procedure = None
       
-    # Obsługa sekcji MAIN
+
     def generate_main(self, main):
         if main[0] == "MAIN_DEC":
             _, declarations, commands = main
@@ -73,12 +79,11 @@ class CodeGenerator:
             _, commands = main
             self.generate_commands(commands)
 
-    # Generowanie kodu dla listy komend
     def generate_commands(self, commands):
         for command in commands:
             self.generate_command(command)
 
-    # Generowanie kodu dla pojedynczej komendy
+
     def generate_command(self, command):
 
         match command:
@@ -112,38 +117,50 @@ class CodeGenerator:
         for arg in args:
             if arg not in self.symbol_table:
                 raise Exception(f"Undeclared argument {arg}.")
-
+        
         # Obsługa rekurencji
         if name == self.current_procedure:
             raise Exception(f"Recursive call detected in procedure {name}.")
                     
         self.current_procedure = name
-        _, _, params, local_variables, commands = self.symbol_table.get_procedure(name)
-                    
+        _, _, params, local_variables, commands = self.symbol_table.get_procedure(self.current_procedure)   
         # Mapowanie
         if len(args) != len(params):
             raise Exception(f"Incorrect number of arguments for procedure {name}. Expected {len(params)}, got {len(args)}.")
         
         # Mapowanie parametrów -> zapisujemy adresy argumentów, nie wartości!
         for param, arg in zip(params, args):
-            
-            param_address = self.symbol_table.get_pointer_proc(param)  # Adres parametru
+            param_address = params[param]  # Adres parametru
             arg_address = self.symbol_table.get_pointer(arg)  # Adres argumentu
             self.emit(f"SET {arg_address}")  # Przekazujemy adres argumentu do parametru
             self.emit(f"STORE {param_address}")
-
         
+        procedure = self.symbol_table.procedures[name]
+        if procedure.call_count >= 10:
+            raise Exception(f"Exceeded maximum call count for procedure {name}.")
+
+        return_memory_index = procedure.return_registers[procedure.call_count]
+        procedure.call_count += 1
+        
+        self.emit(f"SET {len(self.code) + 3}")
+        self.emit(f"STORE {return_memory_index}")
+        proc_base = procedure.base_memory_index
+        self.emit(f"JUMP {proc_base - len(self.code)}")
+        procedure.call_count -= 1
+
         # Przechowanie wartości rejestru powrotu w tablicy symboli
-        return_address = len(self.code) + 3
-        self.emit(f"SET {return_address}")  # Ustawiamy adres powrotu w rejestrze
+        #return_address = len(self.code) + 3
+
+        #self.emit(f"SET {return_address}")  # Ustawiamy adres powrotu w rejestrze
         
         # Zapisujemy adres powrotu do komórki pamięci procedury
-        return_memory_index = self.symbol_table.procedures[name].local_variables["RETURN"].base_memory_index
-        self.emit(f"STORE {return_memory_index -1 }")  # Zapisujemy do komórki procedury
+        #return_memory_index = self.symbol_table.procedures[self.current_procedure].local_variables["RETURN"].base_memory_index
+        #self.emit(f"STORE {return_memory_index}")  # Zapisujemy do komórki procedury
+
         
         # Skok do procedury
-        proc_base = self.symbol_table.procedures[name].base_memory_index
-        self.emit(f"JUMP {proc_base - len(self.code)}")
+        #proc_base = self.symbol_table.procedures[self.current_procedure].base_memory_index
+        #self.emit(f"JUMP {proc_base - len(self.code)}")
 
         self.current_procedure = None
 
@@ -279,7 +296,7 @@ class CodeGenerator:
                 return condition[1][1] <= condition[2][1]
             elif condition[0] == "GEQ":
                 return condition[1][1] >= condition[2][1]
-            elif condition[0] == "lESS":
+            elif condition[0] == "LESS":
                 return condition[1][1] < condition[2][1]
             elif condition[0] == "GREATER":
                 return condition[1][1] > condition[2][1]
