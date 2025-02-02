@@ -29,6 +29,7 @@ class CodeGenerator:
     def generate(self, ast):
         if ast[0] == "PROGRAM":
             _, procedures, main = ast
+            print(ast)
             jump_to_main = len(self.code)
             self.emit("JUMP to_main")
             self.generate_procedures(procedures)
@@ -113,36 +114,36 @@ class CodeGenerator:
                 self.handle_for(iterator, start, end, commands, False, constants)
             case ("FORDOWNTO", iterator, start, end, commands, constants):
                 self.handle_for(iterator, start, end, commands, True, constants)
-            case ("PROC_CALL", name, args):
-                self.handle_proc_call(name, args)
+            case ("PROC_CALL", name, args, line):
+                self.handle_proc_call(name, args, line)
 
 
-    def handle_proc_call(self, name, args):
+    def handle_proc_call(self, name, args, line):
         self.previous_procedure = self.symbol_table.current_procedure
 
         if name not in self.symbol_table.procedures:
-            raise Exception(f"Unknown procedure {name}.")
+            raise Exception(f"Unknown procedure {name} on line {line}.")
             
         for arg in args:
             if arg not in self.symbol_table:
-                raise Exception(f"Undeclared argument {arg}.")
+                raise Exception(f"Undeclared argument {arg} on line {line}.")
             
         if name == self.symbol_table.current_procedure:
-            raise Exception(f"Recursive call detected in procedure {name}.")
+            raise Exception(f"Recursive call detected in procedure {name} on line {line}.")
                     
         self.symbol_table.current_procedure = name
         _, _, params, local_variables, commands = self.symbol_table.get_procedure(self.symbol_table.current_procedure)   
 
         if len(args) != len(params):
-            raise Exception(f"Incorrect number of arguments for procedure {name}. Expected {len(params)}, got {len(args)}.")
+            raise Exception(f"Incorrect number of arguments for procedure {name}. Expected {len(params)}, got {len(args)} on line {line}.")
         
         for (param_name, param_obj), arg in zip(params.items(), args):
             if isinstance(param_obj, Array):  
                 if arg not in self.symbol_table or not isinstance(self.symbol_table[arg], Array):
-                    raise Exception(f"Expected array for parameter '{param_name}', but got variable '{arg}'.")
+                    raise Exception(f"Expected array for parameter '{param_name}', but got variable '{arg}' on line {line}.")
             else: 
                 if arg in self.symbol_table and isinstance(self.symbol_table[arg], Array):
-                    raise Exception(f"Expected variable for parameter '{param_name}', but got array '{arg}'.")
+                    raise Exception(f"Expected variable for parameter '{param_name}', but got array '{arg}' on line {line}.")
 
         for param, arg in zip(params, args):
             param_address = params[param]  
@@ -152,7 +153,7 @@ class CodeGenerator:
         
         procedure = self.symbol_table.procedures[name]
         if procedure.call_count >= 100:
-            raise Exception(f"Exceeded maximum call count for procedure {name}.")
+            raise Exception(f"Exceeded maximum call count for procedure {name} on line {line}.")
 
         return_memory_index = procedure.return_registers[procedure.call_count]
         procedure.call_count += 1
@@ -364,7 +365,7 @@ class CodeGenerator:
                     
             elif var[0] == "ARRAY":
                 array_name, index = var[1], var[2]
-                address = self.handle_array_index(array_name, index, self.ARRAY_POINTER)
+                address = self.handle_array_index(array_name, index, var[3], self.ARRAY_POINTER)
                 if(address != 0):
                     self.emit(f"GET {address}")
                 else:
@@ -396,7 +397,7 @@ class CodeGenerator:
                             raise Exception(f"Undeclared variable '{value[1][1]}'.")
                 elif value[1][0] == "ARRAY":
                     array_name, index  = value[1][1], value[1][2]
-                    address = self.handle_array_index(array_name, index, self.ARRAY_POINTER)
+                    address = self.handle_array_index(array_name, index, value[1][2], self.ARRAY_POINTER)
                     if(address != 0):
                         self.emit(f"PUT {address}")
                     else:
@@ -418,7 +419,7 @@ class CodeGenerator:
         if isinstance(var, tuple): 
             if var[0] == "UNDECLARED":
                 if var[1] in self.symbol_table.iterators:
-                    raise Exception(f"Cannot assign to iterator '{var[1]}'.")
+                    raise Exception(f"Cannot assign to iterator '{var[1]}' on line {var[2]}.")
                 else:
                     address = self.symbol_table.get_pointer_proc(var[1])
                     self.generate_expression(expression)
@@ -430,7 +431,7 @@ class CodeGenerator:
             elif var[0] == "ARRAY":
                 
                 array_name, index  = var[1], var[2]
-                address = self.handle_array_index(array_name, index, self.ARRAY_POINTER)
+                address = self.handle_array_index(array_name, index, var[3], self.ARRAY_POINTER)
                 
                 self.generate_expression(expression)
                 if(address != 0):
@@ -446,7 +447,7 @@ class CodeGenerator:
                 self.generate_expression(expression)
                 self.emit(f"STORE {adress}")
             else:
-                raise Exception(f"Assigning to array {var} with no index provided.")
+                raise Exception(f"Assigning to array {var} with no index provided on line {var[2]}.")
 
 
     def generate_expression(self, expression):
@@ -710,11 +711,11 @@ class CodeGenerator:
                 addr = self.symbol_table.get_pointer_proc(arg_expression[1])
                 self.emit(f"LOADI {addr}")
             else:
-                raise Exception(f"Undeclared variable '{arg_expression[1]}'.")
+                raise Exception(f"Undeclared variable '{arg_expression[1]}' on line {arg_expression[2]}.")
         elif arg_expression[0] == "ARRAY":
 
             array_name, index = arg_expression[1], arg_expression[2]
-            address = self.handle_array_index(array_name, index, self.ARRAY_POINTER_EXPR)
+            address = self.handle_array_index(array_name, index, arg_expression[3], self.ARRAY_POINTER_EXPR)
             
             if address == 0:  
                 self.emit(f"LOADI {self.ARRAY_POINTER_EXPR}")  
@@ -726,14 +727,14 @@ class CodeGenerator:
                 address = self.symbol_table.get_pointer(variable_name)
                 self.emit(f"LOAD {address}")
             else:      
-                raise Exception(f"Unknown variable '{variable_name}'.")
+                raise Exception(f"Unknown variable '{variable_name}' on line {arg_expression[2]}.")
         else:
-            raise Exception(f"Invalid expression ID format: '{arg_expression}'.")
+            raise Exception(f"Invalid expression ID format: '{arg_expression}' on line {arg_expression[2]}.")
 
 
-    def handle_array_index(self, array_name, index, memory_cell):
+    def handle_array_index(self, array_name, index, line, memory_cell):
         if not isinstance(self.symbol_table[array_name], Array):
-            raise Exception(f"Using a variable as an array.")
+            raise Exception(f"Using a variable as an array on line {line}.")
         first_index = self.symbol_table[array_name].first_index
         memory_of_first_index = self.symbol_table.get_pointer([array_name, first_index])
         array_offset = memory_of_first_index - first_index
@@ -762,21 +763,21 @@ class CodeGenerator:
                         self.emit(f"ADD {variable_address}")
                         self.emit(f"STORE {memory_cell}")
                     else:
-                        raise Exception(f"Undeclared index variable '{index[1][1]}'.")
+                        raise Exception(f"Undeclared index variable '{index[1][1]}' on line {line}.")
                 else:
-                    raise Exception(f"Undeclared index variable '{index[1][1]}'.")
+                    raise Exception(f"Undeclared index variable '{index[1][1]}' on line {line}.")
                 
             elif isinstance(index[1], str): 
                 variable_address = self.symbol_table.get_pointer(index[1])
                 if not self.symbol_table[index[1]].initialized:
-                    raise Exception(f"Index variable '{index[1]}' is not initialized.")
+                    raise Exception(f"Index variable '{index[1]}' is not initialized on line {line}.")
                 self.emit(f"SET {array_offset}")
                 self.emit(f"ADD {variable_address}")
                 self.emit(f"STORE {memory_cell}")
                 #TODO: sprawdzić, czy nie wyszło za zakres
             else:
-                raise Exception(f"Invalid index type '{index}'.")
+                raise Exception(f"Invalid index type '{index}' on line {line}.")
         else:
-            raise Exception(f"Unsupported index format '{index}'.")
+            raise Exception(f"Unsupported index format '{index}' on line {line}.")
         
         return address

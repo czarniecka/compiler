@@ -79,11 +79,11 @@ class SymbolTable(dict):
             raise ValueError(f"Unknow variable '{name}'.")
         
 
-    def add_array(self, name, first_index, last_index):
+    def add_array(self, name, first_index, last_index, line):
         if name in self:
             raise ValueError(f"Array '{name}' already declared.")
         elif first_index > last_index:
-            raise IndexError(f"First_index > last_index at array '{name}'.")
+            raise IndexError(f"First_index > last_index at array '{name}' on line {line}.")
         
         array_size = last_index - first_index + 1
         self[name] = Array(first_index, last_index, self.memory_counter)

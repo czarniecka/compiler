@@ -127,7 +127,7 @@ class my_parser(Parser):
     # proc_call
     @_('PIDENTIFIER LPAREN args RPAREN') # type: ignore
     def proc_call(self, p):
-        return "PROC_CALL", p[0], p[2]
+        return "PROC_CALL", p[0], p[2], p.lineno
 
 
     # declarations
@@ -138,7 +138,7 @@ class my_parser(Parser):
 
     @_('declarations COMMA PIDENTIFIER LBRACKET number COLON number RBRACKET') # type: ignore
     def declarations(self, p):
-        self.symbol_table.add_array(p[2], p[4], p[6])
+        self.symbol_table.add_array(p[2], p[4], p[6], p.lineno)
         return p[0] + [("ARRAY", p[2], p[4], p[6])]
 
     @_('PIDENTIFIER') # type: ignore
@@ -148,7 +148,7 @@ class my_parser(Parser):
 
     @_('PIDENTIFIER LBRACKET number COLON number RBRACKET') # type: ignore
     def declarations(self, p):
-        self.symbol_table.add_array(p[0], p[2], p[4])
+        self.symbol_table.add_array(p[0], p[2], p[4], p.lineno)
         return [("ARRAY", p[0], p[2], p[4])]
 
 
@@ -258,27 +258,27 @@ class my_parser(Parser):
         if p[0] in self.symbol_table or p[0] in self.symbol_table.iterators:
             return p[0]
         else:
-            return "UNDECLARED", p[0]
+            return "UNDECLARED", p[0], p.lineno
 
     @_('PIDENTIFIER LBRACKET PIDENTIFIER RBRACKET') # type: ignore
     def identifier(self, p):
         if p[0] in self.symbol_table and type(self.symbol_table[p[0]]) == Array:
             if p[2] in self.symbol_table and type(self.symbol_table[p[2]]) == Variable:
-                return "ARRAY", p[0], ("ID", p[2])
+                return "ARRAY", p[0], ("ID", p[2]), p.lineno
             else:
-                return "ARRAY", p[0], ("ID", ("UNDECLARED", p[2]))
+                return "ARRAY", p[0], ("ID", ("UNDECLARED", p[2])), p.lineno
         else:
             if p[2] in self.symbol_table and type(self.symbol_table[p[2]]) == Variable:
-                return "ARRAY", p[0], ("ID", p[2])
+                return "ARRAY", p[0], ("ID", p[2]), p.lineno
             else:
-                return "ARRAY", p[0], ("ID", ("UNDECLARED", p[2]))
+                return "ARRAY", p[0], ("ID", ("UNDECLARED", p[2])), p.lineno
 
     @_('PIDENTIFIER LBRACKET number RBRACKET') # type: ignore
     def identifier(self, p):
         if p[0] in self.symbol_table and type(self.symbol_table[p[0]]) == Array:
-            return "ARRAY", p[0], p[2]
+            return "ARRAY", p[0], p[2], p.lineno
         else:
-            return "ARRAY", p[0], p[2]
+            return "ARRAY", p[0], p[2], p.lineno
 
 
     # errors
