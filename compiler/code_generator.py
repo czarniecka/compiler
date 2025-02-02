@@ -52,11 +52,9 @@ class CodeGenerator:
                 if self.symbol_table.procedures[name].base_memory_index is None:
                     self.symbol_table.procedures[name].base_memory_index = proc_start
 
+                print(self.symbol_table.current_procedure)
                 # Generujemy kod procedury
                 self.generate_commands(commands)
-                #return_memory_index = self.symbol_table.procedures[name].local_variables["RETURN"].base_memory_index
-                # Powrót z procedury (return)
-                #self.emit(f"RTRN {return_memory_index}")
                 procedure = self.symbol_table.procedures[name]
 
                 if procedure.call_count >= len(procedure.return_registers):
@@ -64,7 +62,6 @@ class CodeGenerator:
                 return_memory_index = procedure.return_registers[procedure.call_count]
 
                 # Ostatnia użyta komórka
-                print(return_memory_index)
                 self.emit(f"RTRN {return_memory_index}")
                 # Aktualizacja adresu startowego procedury w tablicy symboli
                 self.symbol_table.procedures[name].base_memory_index = proc_start
@@ -147,20 +144,6 @@ class CodeGenerator:
         proc_base = procedure.base_memory_index
         self.emit(f"JUMP {proc_base - len(self.code)}")
         procedure.call_count -= 1
-
-        # Przechowanie wartości rejestru powrotu w tablicy symboli
-        #return_address = len(self.code) + 3
-
-        #self.emit(f"SET {return_address}")  # Ustawiamy adres powrotu w rejestrze
-        
-        # Zapisujemy adres powrotu do komórki pamięci procedury
-        #return_memory_index = self.symbol_table.procedures[self.current_procedure].local_variables["RETURN"].base_memory_index
-        #self.emit(f"STORE {return_memory_index}")  # Zapisujemy do komórki procedury
-
-        
-        # Skok do procedury
-        #proc_base = self.symbol_table.procedures[self.current_procedure].base_memory_index
-        #self.emit(f"JUMP {proc_base - len(self.code)}")
 
         self.current_procedure = None
 
@@ -289,7 +272,6 @@ class CodeGenerator:
                 address = self.symbol_table.add_const(const)
                 self.emit(f"STORE {address}")
                 
-
     def simplify_condition(self, condition):
         if condition[1][0] == "NUM" and condition[2][0] == "NUM":
             if condition[0] == "LEQ":
@@ -342,7 +324,6 @@ class CodeGenerator:
                 self.emit("JUMP 2")
                 self.emit("JUMP finish")
 
-
     def handle_read(self, var):
         """
         Obsługuje instrukcję READ.
@@ -377,7 +358,6 @@ class CodeGenerator:
                 
             self.emit(f"GET {address}")
 
-
     def handle_write(self, value):
         """
         Obsługuje instrukcję WRITE.
@@ -397,6 +377,7 @@ class CodeGenerator:
                             raise Exception(f"Undeclared variable '{value[1][1]}'.")
                 elif value[1][0] == "ARRAY":
                     array_name, index  = value[1][1], value[1][2]
+                    print(array_name, index)
                     address = self.handle_array_index(array_name, index, 14)
                     if(address != 0):
                         self.emit(f"PUT {address}")
@@ -745,13 +726,20 @@ class CodeGenerator:
             raise Exception(f"Invalid expression ID format: '{arg_expression}'.")
 
     def handle_array_index(self, array_name, index, memory_cell):
+        #if array_name in self.symbol_table.procedures[self.current_procedure].params:
+        #    print("DUPA")
+        #    #base_addr = self.symbol_table.get_pointer_proc(array_name)  # Pobieranie wskaźnika na tablicę
+        
         first_index = self.symbol_table[array_name].first_index
         memory_of_first_index = self.symbol_table.get_pointer([array_name, first_index])
         array_offset = memory_of_first_index - first_index
         address = 0
+        
         if isinstance(index, int):  # Stały indeks
+            print("tutaj")
             address = self.symbol_table.get_pointer([array_name, index])
         elif isinstance(index, tuple) and index[0] == "ID":
+            
             if isinstance(index[1], tuple) and index[1][0] == "UNDECLARED":
                 if index[1][1] in self.symbol_table.iterators:
                     iterator_address, add2 = self.symbol_table.get_iterator(index[1][1])
@@ -759,6 +747,24 @@ class CodeGenerator:
                     self.emit(f"ADD {iterator_address}")
                     self.emit(f"STORE {memory_cell}")
                     #TODO: sprawdzić, czy nie wyszło za zakres
+                elif self.symbol_table.current_procedure:
+                    print(index[1][1])
+                    print(self.symbol_table.procedures[self.symbol_table.current_procedure].local_variables)
+                    if index[1][1] in self.symbol_table.procedures[self.symbol_table.current_procedure].local_variables:
+                        #TODO: sprawdzić czy jest w zmiennych lokalnych
+                        variable_address = self.symbol_table.procedures[self.symbol_table.current_procedure].local_variables[index[1][1]]
+                        self.emit(f"SET {array_offset}")
+                        self.emit(f"ADD {variable_address}")
+                        self.emit(f"STORE {memory_cell}")
+
+                    elif index[1][1] in self.symbol_table:
+                        # TODO: może być globalna zmienna
+                        variable_address = self.symbol_table.get_pointer(index[1][1])
+                        self.emit(f"SET {array_offset}")
+                        self.emit(f"ADD {variable_address}")
+                        self.emit(f"STORE {memory_cell}")
+                    else:
+                        raise Exception(f"Undeclared index variable '{index[1][1]}'.")
                 else:
                     raise Exception(f"Undeclared index variable '{index[1][1]}'.")
                 

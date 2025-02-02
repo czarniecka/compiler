@@ -38,7 +38,7 @@ class my_parser(Parser):
 
     @_('procedures PROCEDURE proc_head IS BEGIN commands END') # type: ignore
     def procedures(self, p):
-        return p[0] + [("PROCEDURE", p[2], None, p[5])]
+        return p[0] + [("PROCEDURE", p[2], [], p[5])]
 
     @_('') # type: ignore
     def procedures(self, p):
@@ -167,7 +167,7 @@ class my_parser(Parser):
 
     @_('args_decl COMMA T PIDENTIFIER') # type: ignore
     def args_decl(self, p):
-        return p[0] + [(p[1], p[3])]
+        return p[0] + [(p[2], p[3])]
 
     @_('PIDENTIFIER') # type: ignore
     def args_decl(self, p):
@@ -276,14 +276,21 @@ class my_parser(Parser):
             else:
                 return "ARRAY", p[0], ("ID", ("UNDECLARED", p[2]))
         else:
-            raise ValueError(f"Undeclared array {p[0]}")
+            if p[2] in self.symbol_table and type(self.symbol_table[p[2]]) == Variable:
+                return "ARRAY", p[0], ("ID", p[2])
+            else:
+                return "ARRAY", p[0], ("ID", ("UNDECLARED", p[2]))
+            
+            #raise ValueError(f"Undeclared array {p[0]} on line {p.lineno}")
 
     @_('PIDENTIFIER LBRACKET number RBRACKET') # type: ignore
     def identifier(self, p):
         if p[0] in self.symbol_table and type(self.symbol_table[p[0]]) == Array:
             return "ARRAY", p[0], p[2]
         else:
-            raise Exception(f"Undeclared array {p[0]}")
+            return "ARRAY", p[0], p[2]
+            #return "ARRAY", p[0], p[2]
+            #raise Exception(f"Undeclared array {p[0]}")
 
     # -----------------------------------------------
     def error(self, p):
@@ -292,77 +299,39 @@ class my_parser(Parser):
         else:
             print("Syntax error at EOF.")
 
+program4 = '''# Kombinacje 2
+# ? 20
+# ? 9
+# > 167960
 
-program = '''
-PROGRAM IS
-x, y, i, f[0:1] 
+PROCEDURE factorial(T s,n) IS
+  p
 BEGIN
-    f[0] := 1;
-    i := 1;
-    READ f[1];
-    READ f[i];
-    READ x;
-    WRITE x;
-    WRITE f[1];
-    WRITE f[i];
-END'''
-
-program2 = '''PROGRAM IS
-    x, y, f[0:1]
-BEGIN
-    x := 10;
-    y := x + 2;
-    IF x < y THEN
-        WRITE x;
-        f[0] := 1;
-    ELSE
-        WRITE y;
-    ENDIF
-END
-'''
-
-program3 = '''
-PROGRAM IS
-    x, y, f[-1:1]
-BEGIN
-    f[0] := -1;
-    x := 1;
-    y := 1;
-    IF f[0] != y THEN
-        #f[0] := 12* 10;
-        #f[0] := 2;
-        #x := 132 % 5;
-        #y := 132 % -5;
-        #f[0] :=  2 * 5;
-        #y := 1 * 0;
-        #y := 2;
-        #x := y;
-        #x := 2 + 1;
-        #y := 5 - -2;
-        #f[-1] := 3;
-        #x := f[-1];
-        #READ f[1];
-        #READ f[1];
-        WRITE f[0];
-        WRITE x;
-        WRITE y;
-    #ELSE
-    #    x := 2;
-    #    WRITE x;
-    ENDIF
-END
-'''
-
-program4 = '''PROGRAM IS
- a,b
-BEGIN
-  READ a;
-  READ b;
-  FOR i FROM a TO b DO
-    i:=1;
+  s[0]:=1;
+  p:=s[0];
+  FOR i FROM 1 TO n DO
+    s[i]:=p*i;
+    p:=s[i];
   ENDFOR
 END
 
+PROCEDURE bc(n,k,m) IS
+  s[0:100],p
+BEGIN
+  factorial(s,n);
+  p:=n-k;
+  m:=s[n]/s[k];
+  m:=m/s[p];
+END
+
+PROGRAM IS
+    n,k,w
+BEGIN
+    READ n;
+    READ k;
+    bc(n,k,w);
+    WRITE w;
+END
 
 '''
 if __name__ == "__main__":
@@ -370,7 +339,7 @@ if __name__ == "__main__":
     parser = my_parser()
     
     try:
-        tokens = lexer.tokenize(program3)  # Tokenizowanie programu źródłowego
+        tokens = lexer.tokenize(program4)  # Tokenizowanie programu źródłowego
         asm_code = parser.parse(tokens)  # Parsowanie + generowanie kodu
 
         print("\nGenerated Assembler Code:")
@@ -381,4 +350,4 @@ if __name__ == "__main__":
         print("\nAssembler code saved to 'output.mr'.")
 
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error parser: {e}")

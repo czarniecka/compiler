@@ -103,9 +103,15 @@ class SymbolTable(dict):
         # Przydzielamy miejsce na parametry (wskaźniki na argumenty)
         param_memory = {}
         for param in params:
-            
-            param_memory[param] = Variable(self.memory_counter, is_parameter=True)
-            self.memory_counter += 1  # Każdy parametr dostaje jedno miejsce na wskaźnik
+            if isinstance(param, tuple) and param[0].startswith("T"):  # Parametr tablicowy
+                array_name = param[1]
+                print(array_name)
+                param_memory[array_name] = Array(None, None, self.memory_counter)  # Tymczasowy obiekt tablicy
+                self.memory_counter += 1
+                print(param_memory[array_name])
+            else:
+                param_memory[param] = Variable(self.memory_counter, is_parameter=True)
+                self.memory_counter += 1  # Każdy parametr dostaje jedno miejsce na wskaźnik
 
         # Przydzielamy miejsce na zmienne lokalne
         local_memory = {}
