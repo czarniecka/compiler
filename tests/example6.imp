@@ -4,7 +4,7 @@
 # > 6765
 
 PROGRAM IS
-    f[0:100], s[0:100], i[0:100], n, j, k, l
+    f[0:100], s[0:100], i[0:100], n, k, l #usunięcie zmiennej 'j', będącej iteratorem, aby uniknąć overloadingu
 BEGIN
     READ n;
     f[0] := 0;
