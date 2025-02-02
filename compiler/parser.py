@@ -297,34 +297,3 @@ class my_parser(Parser):
             print(f'Syntax error: {p.type} on line {p.lineno}.')
         else:
             print("Syntax error at EOF.")
-
-program4 = '''# błąd: próba modyfikacji iteratora pętli FOR w linii 8
-PROGRAM IS
- a,b
-BEGIN
-  READ a;
-  READ b;
-  FOR i FROM a TO b DO
-    i:=1;
-  ENDFOR
-END
-
-
-'''
-if __name__ == "__main__":
-    lexer = my_lexer()
-    parser = my_parser()
-    
-    try:
-        tokens = lexer.tokenize(program4)  # Tokenizowanie programu źródłowego
-        asm_code = parser.parse(tokens)  # Parsowanie + generowanie kodu
-
-        print("\nGenerated Assembler Code:")
-        print(asm_code)
-
-        with open("output.mr", "w") as f:
-            f.write(asm_code)
-        print("\nAssembler code saved to 'output.mr'.")
-
-    except Exception as e:
-        print(f"Error parser: {e}")
