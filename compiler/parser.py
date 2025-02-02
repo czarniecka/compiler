@@ -1,6 +1,6 @@
 from sly import Parser
 from lexer import my_lexer
-from symbol_table import SymbolTable, Variable, Iterator, Array
+from symbol_table import SymbolTable, Variable, Array
 from code_generator import CodeGenerator
 
 class my_parser(Parser):
@@ -20,18 +20,15 @@ class my_parser(Parser):
     )
 
 
-
     # program_all: program składa się z procedur (opcjonalne) i głównego programu main
     @_('procedures main') # type: ignore
     def program_all(self, p):
         ast = ("PROGRAM", p.procedures, p.main)
-        print("\nAST:", ast)
         asm_code = self.generator.generate(ast)
         return asm_code
 
 
-
-    # procedures: funkcje
+    # procedures
     @_('procedures PROCEDURE proc_head IS declarations BEGIN commands END') # type: ignore
     def procedures(self, p):
         return p[0] + [("PROCEDURE", p[2], p[4], p[6])]
@@ -45,8 +42,7 @@ class my_parser(Parser):
         return []
 
 
-
-    # main: główna część programu
+    # main
     @_('PROGRAM IS declarations BEGIN commands END') # type: ignore
     def main(self, p):
         return "MAIN_DEC", p[2], p[4]
@@ -56,8 +52,7 @@ class my_parser(Parser):
         return "MAIN", p[3]
 
 
-
-    # commands: komendy
+    # commands
     @_('commands command') # type: ignore
     def commands(self, p):
         return p[0] + [p[1]]
@@ -65,7 +60,6 @@ class my_parser(Parser):
     @_('command') # type: ignore
     def commands(self, p):
         return [p[0]]
-
 
 
     # command
@@ -121,23 +115,22 @@ class my_parser(Parser):
     def command(self, p):
         if p[1][0] == "NUM":
             self.symbol_table.add_const(p[1][1])
-            #self.literal_constants.add(int(p[1][1]))
         return "WRITE", p[1]
 
-    # proc_head: nagłówek procedury
+
+    # proc_head
     @_('PIDENTIFIER LPAREN args_decl RPAREN') # type: ignore
     def proc_head(self, p):
         return p[0], p[2]
 
 
-    # proc_call: wywołanie procedury
+    # proc_call
     @_('PIDENTIFIER LPAREN args RPAREN') # type: ignore
     def proc_call(self, p):
         return "PROC_CALL", p[0], p[2]
 
 
-
-    # declarations: lista deklaracji
+    # declarations
     @_('declarations COMMA PIDENTIFIER') # type: ignore
     def declarations(self, p):
         self.symbol_table.add_variable(p[2])
@@ -159,7 +152,6 @@ class my_parser(Parser):
         return [("ARRAY", p[0], p[2], p[4])]
 
 
-
     # args_decl
     @_('args_decl COMMA PIDENTIFIER') # type: ignore
     def args_decl(self, p):
@@ -178,7 +170,6 @@ class my_parser(Parser):
         return [(p[0], p[1])]
 
 
-
     # args
     @_('args COMMA PIDENTIFIER') # type: ignore
     def args(self, p):
@@ -187,7 +178,6 @@ class my_parser(Parser):
     @_('PIDENTIFIER') # type: ignore
     def args(self, p):
         return [p[0]]
-
 
 
     # expression
@@ -216,7 +206,6 @@ class my_parser(Parser):
         return "MOD", p[0], p[2]
 
 
-
     # condition 
     @_('value EQUAL value') # type: ignore
     def condition(self, p):
@@ -242,6 +231,7 @@ class my_parser(Parser):
     def condition(self, p):
         return "LEQ", p[0], p[2]
 
+
     # number
     @_('NUM') # type: ignore
     def number(self, p):
@@ -251,6 +241,7 @@ class my_parser(Parser):
     def number(self, p):
         return -(p[1])
     
+
     # value
     @_('number')
     def value(self, p):
@@ -259,6 +250,7 @@ class my_parser(Parser):
     @_('identifier') # type: ignore
     def value(self, p):
         return "ID", p[0]
+
 
     # identifier
     @_('PIDENTIFIER') # type: ignore
@@ -280,8 +272,6 @@ class my_parser(Parser):
                 return "ARRAY", p[0], ("ID", p[2])
             else:
                 return "ARRAY", p[0], ("ID", ("UNDECLARED", p[2]))
-            
-            #raise ValueError(f"Undeclared array {p[0]} on line {p.lineno}")
 
     @_('PIDENTIFIER LBRACKET number RBRACKET') # type: ignore
     def identifier(self, p):
@@ -289,9 +279,9 @@ class my_parser(Parser):
             return "ARRAY", p[0], p[2]
         else:
             return "ARRAY", p[0], p[2]
-            #raise Exception(f"Undeclared array {p[0]}")
 
-    # -----------------------------------------------
+
+    # errors
     def error(self, p):
         if p:
             print(f'Syntax error: {p.type} on line {p.lineno}.')
