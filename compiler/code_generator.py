@@ -399,6 +399,7 @@ class CodeGenerator:
         """
         Obsługuje przypisanie wartości do zmiennej lub elementu tablicy.
         """
+        
         if isinstance(var, tuple):  # Jeżeli zmienna to np. tablica z indeksem
             if var[0] == "UNDECLARED":
                 # Próba przypisania do niezadeklarowanej zmiennej lub iteratora
@@ -417,8 +418,10 @@ class CodeGenerator:
                     #raise Exception(f"Undeclared variable '{var[1]}'.")
 
             elif var[0] == "ARRAY":
+                
                 array_name, index  = var[1], var[2]
                 address = self.handle_array_index(array_name, index, 14)
+                
                 self.generate_expression(expression)
                 if(address != 0):
                     self.emit(f"STORE {address}")
@@ -729,12 +732,13 @@ class CodeGenerator:
         #if array_name in self.symbol_table.procedures[self.current_procedure].params:
         #    print("DUPA")
         #    #base_addr = self.symbol_table.get_pointer_proc(array_name)  # Pobieranie wskaźnika na tablicę
-        
+        print(array_name)
         first_index = self.symbol_table[array_name].first_index
+        print("działaj")
         memory_of_first_index = self.symbol_table.get_pointer([array_name, first_index])
         array_offset = memory_of_first_index - first_index
         address = 0
-        
+        print("działaj")
         if isinstance(index, int):  # Stały indeks
             print("tutaj")
             address = self.symbol_table.get_pointer([array_name, index])
@@ -769,7 +773,7 @@ class CodeGenerator:
                     raise Exception(f"Undeclared index variable '{index[1][1]}'.")
                 
             elif isinstance(index[1], str):  # Znana zmienna
-                
+                print("działaj")
                 variable_address = self.symbol_table.get_pointer(index[1])
                 if not self.symbol_table[index[1]].initialized:
                     raise Exception(f"Index variable '{index[1]}' is not initialized.")

@@ -289,7 +289,6 @@ class my_parser(Parser):
             return "ARRAY", p[0], p[2]
         else:
             return "ARRAY", p[0], p[2]
-            #return "ARRAY", p[0], p[2]
             #raise Exception(f"Undeclared array {p[0]}")
 
     # -----------------------------------------------
@@ -299,39 +298,17 @@ class my_parser(Parser):
         else:
             print("Syntax error at EOF.")
 
-program4 = '''# Kombinacje 2
-# ? 20
-# ? 9
-# > 167960
-
-PROCEDURE factorial(T s,n) IS
-  p
+program4 = '''# błąd: próba modyfikacji iteratora pętli FOR w linii 8
+PROGRAM IS
+ a,b
 BEGIN
-  s[0]:=1;
-  p:=s[0];
-  FOR i FROM 1 TO n DO
-    s[i]:=p*i;
-    p:=s[i];
+  READ a;
+  READ b;
+  FOR i FROM a TO b DO
+    i:=1;
   ENDFOR
 END
 
-PROCEDURE bc(n,k,m) IS
-  s[0:100],p
-BEGIN
-  factorial(s,n);
-  p:=n-k;
-  m:=s[n]/s[k];
-  m:=m/s[p];
-END
-
-PROGRAM IS
-    n,k,w
-BEGIN
-    READ n;
-    READ k;
-    bc(n,k,w);
-    WRITE w;
-END
 
 '''
 if __name__ == "__main__":

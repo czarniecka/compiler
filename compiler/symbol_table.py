@@ -1,3 +1,4 @@
+import warnings
 class Variable:
     def __init__(self, base_memory_index, is_local=False, is_parameter=False):
         self.base_memory_index = base_memory_index
@@ -67,7 +68,8 @@ class SymbolTable(dict):
         else:
             # Jeśli jesteśmy poza procedurą (np. w MAIN), dodajemy do globalnego zakresu
             if name in self:
-                raise ValueError(f"Variable '{name}' already declared globally.")
+                warnings.warn("Variable '{name}' already declared globally.", DeprecationWarning)
+                #raise ValueError(f"Variable '{name}' already declared globally.")
             self[name] = Variable(self.memory_counter)
 
         self.memory_counter += 1  # Zwiększamy licznik pamięci
@@ -105,10 +107,8 @@ class SymbolTable(dict):
         for param in params:
             if isinstance(param, tuple) and param[0].startswith("T"):  # Parametr tablicowy
                 array_name = param[1]
-                print(array_name)
                 param_memory[array_name] = Array(None, None, self.memory_counter)  # Tymczasowy obiekt tablicy
                 self.memory_counter += 1
-                print(param_memory[array_name])
             else:
                 param_memory[param] = Variable(self.memory_counter, is_parameter=True)
                 self.memory_counter += 1  # Każdy parametr dostaje jedno miejsce na wskaźnik
