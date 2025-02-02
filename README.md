@@ -12,7 +12,7 @@ This is a compiler for a simple imperative language that translates source code 
 
 ## Project Structure
 
-The project consists of the following files:
+The project consists of the following files in folder `compiler`:
 
 - `lexer.py` – a lexical analyzer that tokenizes the source code.
 - `parser.py` – a syntax analyzer that constructs a simple syntax tree represented by nested tuples from the tokens.
@@ -22,7 +22,7 @@ The project consists of the following files:
 
 ## Additional Directories and Files
 
-The following directories and files were provided by the course instructor (Dr. Maciej Gębala):
+The following directories and files were provided by the course instructor (Maciej Gębala):
 
 - `tests` directory – example programs for verifying the correctness of the generated code.
 - `programs` directory – additional auxiliary scripts.

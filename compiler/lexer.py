@@ -1,7 +1,7 @@
 from sly import Lexer
 
 class my_lexer(Lexer):
-    # Tokeny z gramatyki
+
     tokens = {
         PROCEDURE, PROGRAM, IS, BEGIN, END,                             # type: ignore
         IF, THEN, ELSE, ENDIF, WHILE, DO, ENDWHILE,                     # type: ignore
@@ -13,10 +13,10 @@ class my_lexer(Lexer):
         LPAREN, RPAREN, LBRACKET, RBRACKET, SEMICOLON, COLON, COMMA     # type: ignore
     }
 
-    # Ignorowane znaki (spacje, tabulatory)
+
     ignore = ' \t'
 
-    # Definicje tokenów odpowiadające słowom kluczowym
+
     PROCEDURE = r'PROCEDURE'
     ENDWHILE  = r'ENDWHILE'
     PROGRAM   = r'PROGRAM'
@@ -39,8 +39,7 @@ class my_lexer(Lexer):
     IS        = r'IS'
     TO        = r'TO'
    
-    
-    # Symboliczne tokeny
+
     ASSIGN      = r':='
     NEQUAL      = r'!='
     GEQ         = r'>='
@@ -64,25 +63,25 @@ class my_lexer(Lexer):
     
     NUM = r'\d+'
     T = r'T'
-    # Token identyfikatorów
     PIDENTIFIER = r'[_a-z]+'
+
 
     @_(r'\d+')
     def NUM(self, t):
         t.value = int(t.value)
         return t
-    
-    # Ignorowanie komentarzy
+
+
     @_(r'\#[^\n]*') # type: ignore
     def ignore_comment(self, t):
         self.lineno += t.value.count('\n')
 
-    # Ignorowanie nowej linii
+
     @_(r'\n+') # type: ignore
     def ignore_newline(self, t):
         self.lineno += len(t.value)
 
-    # Obsługa błędów
+
     def error(self, t):
         print(f"ERROR LEXER: illegal character {t.value[0]} on line {self.lineno}")
         self.index += 1

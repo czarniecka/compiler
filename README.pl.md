@@ -12,7 +12,7 @@ Ten projekt to kompilator prostego języka imperatywnego, który tłumaczy kod �
 
 ## Struktura projektu
 
-Projekt składa się z następujących plików:
+Projekt składa się z następujących plików w katalogu `compiler`:
 
 - `lexer.py` – analizator leksykalny, który dzieli kod źródłowy na tokeny.
 - `parser.py` – analizator składniowy, który buduje na bazie tokenów tworzy proste syntax tree reprezentowane przez zagnieżdżone krotki.
