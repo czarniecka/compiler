@@ -1,32 +1,32 @@
+import sys
 from lexer import my_lexer
 from parser import my_parser
-from symbol_table import SymbolTable, Variable, Iterator, Array
-from code_generator import CodeGenerator
 
-if __name__ == "__main__":
+def main():
+    if len(sys.argv) != 3:
+        print("Usage: python3 compiler.py <in_file> <out_file>")
+        sys.exit(1)
+    
+    input_file = sys.argv[1]
+    output_file = sys.argv[2]
+    
     lexer = my_lexer()
     parser = my_parser()
-    file_path = "../tests/error8.imp"
     
     try:
-        # Otwieramy plik źródłowy
-        with open(file_path, "r") as file:
+        with open(input_file, "r") as file:
             source_code = file.read()
         
-        # Tokenizowanie programu źródłowego
         tokens = lexer.tokenize(source_code)
-        
-        # Parsowanie i generowanie kodu
         asm_code = parser.parse(tokens)
-        
-        print("\nGenerated Assembler Code:")
-        print(asm_code)
-        
-        # Zapisanie wygenerowanego kodu do pliku
-        with open("output.mr", "w") as f:
+
+        with open(output_file, "w") as f:
             f.write(asm_code)
         
-        print("\nAssembler code saved to 'output.mr'.")
-
+        print(f"\nAssembler code saved to '{output_file}'.")
+    
     except Exception as e:
         print(f"Error: {e}")
+
+if __name__ == "__main__":
+    main()
