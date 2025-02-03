@@ -31,10 +31,12 @@ class CodeGenerator:
         if ast[0] == "PROGRAM":
             _, procedures, main = ast
             jump_to_main = len(self.code)
-            self.emit("JUMP to_main")
+            if procedures:
+                self.emit("JUMP to_main")
             self.generate_procedures(procedures)
             main_start = len(self.code)
-            self.code[jump_to_main] = f"JUMP {main_start}"
+            if procedures:
+                self.code[jump_to_main] = f"JUMP {main_start}"
             self.generate_main(main)
             self.emit("HALT")
         return "\n".join(self.code)
