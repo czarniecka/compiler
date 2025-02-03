@@ -27,9 +27,9 @@ class CodeGenerator:
 
 
     def generate(self, ast):
+
         if ast[0] == "PROGRAM":
             _, procedures, main = ast
-            print(ast)
             jump_to_main = len(self.code)
             self.emit("JUMP to_main")
             self.generate_procedures(procedures)
@@ -61,15 +61,16 @@ class CodeGenerator:
                 self.symbol_table.add_procedure(name, params, declarations, commands)
                 
                 self.symbol_table.current_procedure = name
-
+                
                 proc_start = len(self.code)
-
+                
                 if self.symbol_table.procedures[name].base_memory_index is None:
                     self.symbol_table.procedures[name].base_memory_index = proc_start
 
                 self.generate_commands(commands)
-                procedure = self.symbol_table.procedures[name]
 
+                procedure = self.symbol_table.procedures[name]
+                
                 if procedure.call_count >= len(procedure.return_registers):
                     raise Exception(f"Exceeded maximum call count for procedure {name}.")
                 return_memory_index = procedure.return_registers[procedure.call_count]
@@ -77,9 +78,11 @@ class CodeGenerator:
                 self.emit(f"RTRN {return_memory_index}")
 
                 self.symbol_table.current_procedure = None
+                
       
 
     def generate_main(self, main):
+
         if main[0] == "MAIN_DEC":
             _, declarations, commands = main
             self.generate_commands(commands)
@@ -89,6 +92,7 @@ class CodeGenerator:
 
 
     def generate_commands(self, commands):
+
         for command in commands:
             self.generate_command(command)
 
@@ -119,6 +123,7 @@ class CodeGenerator:
 
 
     def handle_proc_call(self, name, args, line):
+
         self.previous_procedure = self.symbol_table.current_procedure
 
         if name not in self.symbol_table.procedures:
@@ -171,6 +176,7 @@ class CodeGenerator:
 
 
     def handle_if(self, condition, commands):
+
         condition_return = self.simplify_condition(condition)
         if isinstance(condition_return, bool):
             if condition_return:
@@ -186,6 +192,7 @@ class CodeGenerator:
 
 
     def handle_ifelse(self, condition, then_commands, else_commands):
+
         condition_return = self.simplify_condition(condition)
         if isinstance(condition_return, bool):
             if condition_return:
@@ -207,6 +214,7 @@ class CodeGenerator:
 
 
     def handle_while(self, condition, commands):
+
         condition_return = self.simplify_condition(condition)
         if isinstance(condition_return, bool):
             if condition_return:
@@ -225,6 +233,7 @@ class CodeGenerator:
 
 
     def handle_repeat(self, condition, commands):
+
         start_of_loop = len(self.code)
         self.generate_commands(commands)
         start_of_condition = len(self.code)
@@ -237,7 +246,7 @@ class CodeGenerator:
 
 
     def handle_for(self, iterator, start, end, commands, downto, constants):
-        # TODO: obsługa błędu: a > b przy to, a < b przy downto
+        
         if start[0] == end[0] == "NUM":
             if start[1] > end[1] and downto == False:
                 raise Exception(f"Invalid for loop scope.")
@@ -246,21 +255,21 @@ class CodeGenerator:
 
         if iterator in self.symbol_table:
             raise Exception(f"Overloading name of iterator {iterator}.")
-
+        
         if self.iterators:
             address, bound_address = self.symbol_table.get_iterator(self.iterators[-1])
             self.emit(f"STORE {address}")
         else:
             self.prepere_constants(constants)
-            
+        
         if downto:
             operation = f"SUB {self.VALUE_ONE}"
         else:
             operation = f"ADD {self.VALUE_ONE}"
-
+        
         self.iterators.append(iterator)
         start_addr, end_addr = self.symbol_table.add_iterator(iterator)
-
+        
         self.emit("SET 1")
         self.emit(f"STORE {self.VALUE_ONE}")
 
@@ -269,16 +278,16 @@ class CodeGenerator:
         self.generate_expression(end)
         self.emit(operation)
         self.emit(f"STORE {end_addr}")
-
+        
         start_of_for = len(self.code)
 
         self.emit(f"LOAD {start_addr}")
         self.emit(f"SUB {end_addr}")
 
         it = len(self.code)
-        
+
         self.generate_commands(commands)
-        
+
         self.emit(f"LOAD {start_addr}")
         self.emit(operation)
         self.emit(f"STORE {start_addr}")
@@ -289,6 +298,7 @@ class CodeGenerator:
 
 
     def prepere_constants(self, constants):
+
         for const in constants:
             address = self.symbol_table.get_const(const)
             if address is None:
@@ -297,6 +307,7 @@ class CodeGenerator:
 
 
     def simplify_condition(self, condition):
+
         if condition[1][0] == "NUM" and condition[2][0] == "NUM":
             if condition[0] == "LEQ":
                 return condition[1][1] <= condition[2][1]
@@ -351,6 +362,7 @@ class CodeGenerator:
 
 
     def handle_read(self, var):
+
         if isinstance(var, tuple):
             if var[0] == "UNDECLARED":
                 if var[1] in self.symbol_table.iterators:
@@ -382,12 +394,13 @@ class CodeGenerator:
 
 
     def handle_write(self, value):
+
         if value[0] == "ID":
             if isinstance(value[1], tuple):
                 if value[1][0] == "UNDECLARED":
                     if value[1][1] in self.symbol_table.iterators:
                         iterator, add2 = self.symbol_table.get_iterator(value[1][1])
-                        self.emit(f"PUT {iterator.base_memory_index}")
+                        self.emit(f"PUT {iterator}")
                     else:
                         addr = self.symbol_table.get_pointer_proc(value[1][1])
                         if isinstance(self.symbol_table.get_pointer_proc(value[1][1]), Variable):
@@ -415,7 +428,8 @@ class CodeGenerator:
             raise Exception(f"Unsupported value type '{value[0]}' for WRITE.")
         
 
-    def handle_assign(self, var, expression):   
+    def handle_assign(self, var, expression):  
+
         if isinstance(var, tuple): 
             if var[0] == "UNDECLARED":
                 if var[1] in self.symbol_table.iterators:
@@ -431,8 +445,9 @@ class CodeGenerator:
             elif var[0] == "ARRAY":
                 
                 array_name, index  = var[1], var[2]
+
                 address = self.handle_array_index(array_name, index, var[3], self.ARRAY_POINTER)
-                
+
                 self.generate_expression(expression)
                 if(address != 0):
                     self.emit(f"STORE {address}")
@@ -567,138 +582,135 @@ class CodeGenerator:
 
 
     def handle_division(self, left_expr, right_expr):
-        # w modulo nie działa, więc poprawić, albo wywalić
-        if right_expr[1] == "heheheheheheh":
-            self.generate_expression(left_expr)
-            self.emit("HALF")
-            self.emit(f"STORE {self.RESULT}")
-        else:
-            self.emit("SET 1")
-            self.emit(f"STORE {self.VALUE_ONE}")
+        self.emit("SET 1")
+        self.emit(f"STORE {self.VALUE_ONE}")
 
-            # Zerowanie flag znaków
-            self.emit("SET 0")
-            self.emit(f"STORE {self.FLAG_SIGN_LEFT_EXPR}")
-            self.emit(f"STORE {self.FLAG_SIGN_RIGHT_EXPR}")
+        # Zerowanie flag znaków
+        self.emit("SET 0")
+        self.emit(f"STORE {self.FLAG_SIGN_LEFT_EXPR}")
+        self.emit(f"STORE {self.FLAG_SIGN_RIGHT_EXPR}")
 
-            self.generate_expression(left_expr) 
-            self.emit("JPOS 6")
-            self.emit(f"STORE {self.LEFT_EXPR}")
+        self.generate_expression(left_expr) 
+        self.emit("JPOS 6")
+        self.emit(f"STORE {self.LEFT_EXPR}")
 
-            # Flaga znaku
-            self.emit("SET 1")
-            self.emit(f"STORE {self.FLAG_SIGN_LEFT_EXPR}")
+        # Flaga znaku
+        self.emit("SET 1")
+        self.emit(f"STORE {self.FLAG_SIGN_LEFT_EXPR}")
 
-            self.emit("SET 0")
-            self.emit(f"SUB {self.LEFT_EXPR}")
+        self.emit("SET 0")
+        self.emit(f"SUB {self.LEFT_EXPR}")
 
-            self.emit(f"STORE {self.LEFT_EXPR}") 
-            self.emit(f"STORE {self.RESULT_MODULO}") 
+        self.emit(f"STORE {self.LEFT_EXPR}") 
+        self.emit(f"STORE {self.RESULT_MODULO}") 
 
-            self.generate_expression(right_expr)
-            self.emit("JPOS 6")
-            self.emit("STORE 2")
+        self.generate_expression(right_expr)
+        self.emit("JPOS 6")
+        self.emit("STORE 2")
 
-            # Flaga znaku
-            self.emit("SET -1")
-            self.emit(f"STORE {self.FLAG_SIGN_RIGHT_EXPR}")
+        # Flaga znaku
+        self.emit("SET -1")
+        self.emit(f"STORE {self.FLAG_SIGN_RIGHT_EXPR}")
 
-            self.emit("SET 0")
-            self.emit("SUB 2")
+        self.emit("SET 0")
+        self.emit("SUB 2")
 
-            self.emit("STORE 2") 
-            self.emit(f"STORE {self.HELP_B}") 
+        self.emit("STORE 2") 
+        self.emit(f"STORE {self.HELP_B}") 
 
-            self.emit("SET 0") 
-            self.emit(f"STORE {self.RESULT}")  
+        self.emit("SET 0") 
+        self.emit(f"STORE {self.RESULT}")  
 
-            self.emit("SET 1") 
-            self.emit(f"STORE {self.HELP}")  
+        self.emit("SET 1") 
+        self.emit(f"STORE {self.HELP}")  
 
-            # Jeśli coś 0 to koniec pętli, wynik = 0
-            self.emit(f"LOAD {self.LEFT_EXPR}")
-            self.emit("JZERO 50")
-            self.emit(f"LOAD {self.RIGHT_EXPR}")
-            self.emit("JZERO 48")
+        # Jeśli coś 0 to koniec pętli, wynik = 0
+        self.emit(f"LOAD {self.LEFT_EXPR}")
+        self.emit("JZERO 50")
+        self.emit(f"LOAD {self.RIGHT_EXPR}")
+        self.emit("JZERO 48")
 
-            # Pętla
-            self.emit(f"LOAD {self.RESULT_MODULO}")
-            self.emit(f"SUB {self.HELP_B}")     # a - b
-            self.emit(f"JPOS {self.RESULT}")    # jeśli a - b >= 0
-            self.emit("JZERO 2")   # jeśli a - b = 0
-            self.emit("JUMP 8")    
+        # Pętla
+        self.emit(f"LOAD {self.RESULT_MODULO}")
+        self.emit(f"SUB {self.HELP_B}")     # a - b
+        self.emit(f"JPOS {self.RESULT}")    # jeśli a - b >= 0
+        self.emit("JZERO 2")   # jeśli a - b = 0
+        self.emit("JUMP 8")    
 
-            # Dodajemy b do k i zapisujemy
-            self.emit(f"LOAD {self.HELP_B}")
-            self.emit(f"ADD {self.HELP_B}")     # b + b_mult
-            self.emit(f"STORE {self.HELP_B}")   
-            self.emit(f"LOAD {self.HELP}")
-            self.emit(f"ADD {self.HELP}")     # k + k
-            self.emit(f"STORE {self.HELP}")   
-            self.emit("JUMP -11")
+        # Dodajemy b do k i zapisujemy
+        self.emit(f"LOAD {self.HELP_B}")
+        self.emit(f"ADD {self.HELP_B}")     # b + b_mult
+        self.emit(f"STORE {self.HELP_B}")   
+        self.emit(f"LOAD {self.HELP}")
+        self.emit(f"ADD {self.HELP}")     # k + k
+        self.emit(f"STORE {self.HELP}")   
+        self.emit("JUMP -11")
 
-            # Zmieniamy wartości pomocnicze (dzielimy przez 2)
-            self.emit(f"LOAD {self.HELP}")
-            self.emit("HALF")      # k //= 2
-            self.emit(f"STORE {self.HELP}")
-            self.emit(f"LOAD {self.HELP_B}")
-            self.emit("HALF")      # b_mult //= 2
-            self.emit(f"STORE {self.HELP_B}") 
+        # Zmieniamy wartości pomocnicze (dzielimy przez 2)
+        self.emit(f"LOAD {self.HELP}")
+        self.emit("HALF")      # k //= 2
+        self.emit(f"STORE {self.HELP}")
+        self.emit(f"LOAD {self.HELP_B}")
+        self.emit("HALF")      # b_mult //= 2
+        self.emit(f"STORE {self.HELP_B}") 
 
-            # Sprawdzamy warunki na mod
-            self.emit(f"LOAD {self.RESULT_MODULO}")
-            self.emit(f"SUB {self.RIGHT_EXPR}")     # a - b
-            self.emit(f"JPOS {self.RESULT}")    # jeśli a - b >= 0
-            self.emit("JZERO 2")   # jeśli a - b = 0
-            self.emit("JUMP 19")   
+        # Sprawdzamy warunki na mod
+        self.emit(f"LOAD {self.RESULT_MODULO}")
+        self.emit(f"SUB {self.RIGHT_EXPR}")     # a - b
+        self.emit(f"JPOS {self.RESULT}")    # jeśli a - b >= 0
+        self.emit("JZERO 2")   # jeśli a - b = 0
+        self.emit("JUMP 19")   
 
-            # Ponownie obliczamy resztę
-            self.emit(f"LOAD {self.RESULT_MODULO}")
-            self.emit(f"SUB {self.HELP_B}")     # a - b_mult
-            self.emit(f"JPOS {self.RESULT}")    # jeśli a - b_mult >= 0
-            self.emit("JZERO 2")   # jeśli a - b_mult = 0
-            self.emit("JUMP 7") 
+        # Ponownie obliczamy resztę
+        self.emit(f"LOAD {self.RESULT_MODULO}")
+        self.emit(f"SUB {self.HELP_B}")     # a - b_mult
+        self.emit(f"JPOS {self.RESULT}")    # jeśli a - b_mult >= 0
+        self.emit("JZERO 2")   # jeśli a - b_mult = 0
+        self.emit("JUMP 7") 
 
-            self.emit(f"LOAD {self.RESULT_MODULO}")    
-            self.emit(f"SUB {self.HELP_B}") 
-            self.emit(f"STORE {self.RESULT_MODULO}")
-            self.emit(f"LOAD {self.RESULT}")
+        self.emit(f"LOAD {self.RESULT_MODULO}")    
+        self.emit(f"SUB {self.HELP_B}") 
+        self.emit(f"STORE {self.RESULT_MODULO}")
+        self.emit(f"LOAD {self.RESULT}")
 
-            self.emit(f"ADD {self.HELP}")     # dodaj k do result
-            self.emit(f"STORE {self.RESULT}")   
-            # Dzielimy ponownie k i b_mult przez 2
-            self.emit(f"LOAD {self.HELP}")
-            self.emit("HALF")      # k //= 2
-            self.emit(f"STORE {self.HELP}") 
-            self.emit(f"LOAD {self.HELP_B}")
-            self.emit("HALF")      # b_mult //= 2
-            self.emit(f"STORE {self.HELP_B}")   
+        self.emit(f"ADD {self.HELP}")     # dodaj k do result
+        self.emit(f"STORE {self.RESULT}")   
+        # Dzielimy ponownie k i b_mult przez 2
+        self.emit(f"LOAD {self.HELP}")
+        self.emit("HALF")      # k //= 2
+        self.emit(f"STORE {self.HELP}") 
+        self.emit(f"LOAD {self.HELP_B}")
+        self.emit("HALF")      # b_mult //= 2
+        self.emit(f"STORE {self.HELP_B}")   
 
-            self.emit("JUMP -22")
+        self.emit("JUMP -22")
 
-            # Sprawdzenie znaku
-            self.emit(f"LOAD {self.FLAG_SIGN_LEFT_EXPR}")
-            self.emit(f"ADD {self.FLAG_SIGN_RIGHT_EXPR}")
-            self.emit("JZERO 10") # jak 0 to skaczemy ten sam znak
-            # Zmiana znaku wyniku, jesli różne znaki A i B
-            self.emit(f"LOAD {self.RIGHT_EXPR}")
-            self.emit(f"SUB {self.RESULT_MODULO}")
-            self.emit(f"STORE {self.RESULT_MODULO}")
+        # Sprawdzenie znaku
+        self.emit(f"LOAD {self.FLAG_SIGN_LEFT_EXPR}")
+        self.emit(f"ADD {self.FLAG_SIGN_RIGHT_EXPR}")
+        self.emit("JZERO 12") # jak 0 to skaczemy ten sam znak
+        # Zmiana znaku wyniku, jesli różne znaki A i B
+        self.emit(f"LOAD {self.RESULT_MODULO}")
+        self.emit(f"JZERO 7")
 
-            self.emit(f"LOAD {self.RESULT}")
-            self.emit(f"ADD {self.VALUE_ONE}")
-            self.emit(f"STORE {self.RESULT}")
-            self.emit("SET 0")
-            self.emit(f"SUB {self.RESULT}")
-            self.emit(f"STORE {self.RESULT}")
+        self.emit(f"LOAD {self.RIGHT_EXPR}")
+        self.emit(f"SUB {self.RESULT_MODULO}")
+        self.emit(f"STORE {self.RESULT_MODULO}")
 
-            #Sprawdzenie znaku reszty z dzielenia 
-            self.emit(f"LOAD {self.FLAG_SIGN_RIGHT_EXPR}")
-            self.emit("JZERO 4")
-            # Zmiana znaku reszty, jesli B ujemne
-            self.emit("SET 0")
-            self.emit(f"SUB {self.RESULT_MODULO}")
-            self.emit(f"STORE {self.RESULT_MODULO}")
+        self.emit(f"LOAD {self.RESULT}")
+        self.emit(f"ADD {self.VALUE_ONE}")
+        self.emit(f"STORE {self.RESULT}")
+        self.emit("SET 0")
+        self.emit(f"SUB {self.RESULT}")
+        self.emit(f"STORE {self.RESULT}")
+
+        #Sprawdzenie znaku reszty z dzielenia 
+        self.emit(f"LOAD {self.FLAG_SIGN_RIGHT_EXPR}")
+        self.emit("JZERO 4")
+        # Zmiana znaku reszty, jesli B ujemne
+        self.emit("SET 0")
+        self.emit(f"SUB {self.RESULT_MODULO}")
+        self.emit(f"STORE {self.RESULT_MODULO}")
 
 
     def handle_expressionID(self, arg_expression):
@@ -733,12 +745,15 @@ class CodeGenerator:
 
 
     def handle_array_index(self, array_name, index, line, memory_cell):
+        
         if not isinstance(self.symbol_table[array_name], Array):
             raise Exception(f"Using a variable as an array on line {line}.")
+
         first_index = self.symbol_table[array_name].first_index
         memory_of_first_index = self.symbol_table.get_pointer([array_name, first_index])
         array_offset = memory_of_first_index - first_index
         address = 0
+
         if isinstance(index, int):  
             address = self.symbol_table.get_pointer([array_name, index])
         elif isinstance(index, tuple) and index[0] == "ID":
@@ -749,7 +764,6 @@ class CodeGenerator:
                     self.emit(f"SET {array_offset}")
                     self.emit(f"ADD {iterator_address}")
                     self.emit(f"STORE {memory_cell}")
-                    #TODO: sprawdzić, czy nie wyszło za zakres
                 elif self.symbol_table.current_procedure:
                     if index[1][1] in self.symbol_table.procedures[self.symbol_table.current_procedure].local_variables:
                         variable_address = self.symbol_table.procedures[self.symbol_table.current_procedure].local_variables[index[1][1]]
@@ -774,7 +788,6 @@ class CodeGenerator:
                 self.emit(f"SET {array_offset}")
                 self.emit(f"ADD {variable_address}")
                 self.emit(f"STORE {memory_cell}")
-                #TODO: sprawdzić, czy nie wyszło za zakres
             else:
                 raise Exception(f"Invalid index type '{index}' on line {line}.")
         else:

@@ -81,7 +81,7 @@ class SymbolTable(dict):
 
     def add_array(self, name, first_index, last_index, line):
         if name in self:
-            raise ValueError(f"Array '{name}' already declared.")
+            raise ValueError(f"'{name}' already declared.")
         elif first_index > last_index:
             raise IndexError(f"First_index > last_index at array '{name}' on line {line}.")
         

@@ -127,6 +127,8 @@ class my_parser(Parser):
     # proc_call
     @_('PIDENTIFIER LPAREN args RPAREN') # type: ignore
     def proc_call(self, p):
+        if(p[2][0] == "sito"):
+            p[2][0] = p[2][0][0]
         return "PROC_CALL", p[0], p[2], p.lineno
 
 
@@ -138,6 +140,8 @@ class my_parser(Parser):
 
     @_('declarations COMMA PIDENTIFIER LBRACKET number COLON number RBRACKET') # type: ignore
     def declarations(self, p):
+        if(p[2] == "sito"):
+            p[2] = p[2][0]
         self.symbol_table.add_array(p[2], p[4], p[6], p.lineno)
         return p[0] + [("ARRAY", p[2], p[4], p[6])]
 
